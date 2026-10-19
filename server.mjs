@@ -3,7 +3,8 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 
-const root = resolve(fileURLToPath(new URL('./public/', import.meta.url)));
+const projectRoot = resolve(fileURLToPath(new URL('./', import.meta.url)));
+const publicRoot = resolve(fileURLToPath(new URL('./public/', import.meta.url)));
 const port = Number(process.env.PORT || 3000);
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -17,9 +18,12 @@ const contentTypes = {
 
 function safePath(urlPath) {
   const pathname = decodeURIComponent((urlPath || '/').split('?')[0]);
+  const isSourceModule = pathname.startsWith('/src/');
   const requested = pathname === '/' ? '/index.html' : pathname;
-  const candidate = normalize(join(root, requested));
-  return candidate.startsWith(root) ? candidate : null;
+  const base = isSourceModule ? projectRoot : publicRoot;
+  const candidate = normalize(join(base, requested));
+  const allowedRoot = isSourceModule ? projectRoot : publicRoot;
+  return candidate.startsWith(`${allowedRoot}${'\\'}`) || candidate.startsWith(`${allowedRoot}/`) ? candidate : null;
 }
 
 const server = createServer((request, response) => {

@@ -58,7 +58,7 @@ The Docker build runs `npm test` in the checks stage before producing the runtim
 
 ## Deployment
 
-Deploy the container to an approved host that supports a Node 22 container, or serve the `public/` directory through a static host. Set `PORT` only if the host requires a different listen port. Do not put `QWEN_API_KEY` in the browser or in a public environment variable.
+Deploy the container to an approved host that supports a Node 22 container, or deploy the `public/` assets together with the read-only `src/domain/` modules under the `/src/` URL path. Set `PORT` only if the host requires a different listen port. Do not put `QWEN_API_KEY` in the browser or in a public environment variable.
 
 ## Qwen3-8B status
 

@@ -37,6 +37,7 @@ perl -0e '
     ["$root/src/domain/rules.mjs", qr/possible-match/],
     ["$root/src/domain/rules.mjs", qr/user-reported-resolved/],
     ["$root/src/domain/assistant.mjs", qr/deterministic-fallback/],
+    ["$root/server.mjs", qr/isSourceModule/],
     ["$root/docs/source-register.md", qr/SRC-RBI-UDGAM-FAQ/],
     ["$root/docs/source-register.md", qr/access-blocked/],
     ["$root/.env.example", qr/QWEN_MODEL=Qwen\/Qwen3-8B/]
