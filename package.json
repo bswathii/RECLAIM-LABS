@@ -1,0 +1,15 @@
+{
+  "name": "reclaim-labs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A source-traceable recovery preparation companion for IEPF and RBI UDGAM workflows.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "license": "MIT"
+}
