@@ -1,7 +1,7 @@
 # Stage 1 audit — Reclaim Labs
 
-**Audit date:** 2026-10-19 (Asia/Calcutta)  
-**Repository:** `C:\Users\bswat\Desktop\reclaim labs`  
+**Audit date:** 2026-10-19 (Asia/Calcutta)
+**Repository:** `C:\Users\bswat\Desktop\reclaim labs`
 **Requested remote:** `https://github.com/bswathii/RECLAIM-LABS`
 
 ## Existing implementation
