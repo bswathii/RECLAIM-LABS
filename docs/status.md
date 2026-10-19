@@ -17,7 +17,9 @@
 
 ## Checks
 
-- `sh ./test.sh`: **passed**; it ran the POSIX smoke suite because Node.js is unavailable.
-- `npm test`: full Node test suite; blocked locally until Node.js or Docker is available.
-- `npm ci`: dependency installation is expected to be a no-op because the project has no runtime dependencies; blocked locally with npm unavailable.
-- `node server.mjs`: local server check; blocked locally with Node unavailable.
+- `sh ./test.sh`: **passed** in the default worker PATH; it ran the POSIX smoke suite because Node.js is not on that PATH.
+- `PATH=<temporary pinned Node 22.14.0> sh ./test.sh`: **passed**, all 8 behavioral tests.
+- `npm ci --ignore-scripts`: **passed** with the temporary pinned Node 22.14.0 runtime; there are no runtime dependencies.
+- `node server.mjs` + HTTP smoke: **passed** for the index, browser domain-module delivery, and source-path traversal rejection.
+- Built-in browser preview: **blocked**; opening `http://localhost:3000/` timed out and no browser tab was created.
+- Docker build: **blocked**; Docker is not installed in the worker.

@@ -19,7 +19,7 @@ The rules engine is in `src/domain/rules.mjs`. Source records are in `src/domain
 - npm bundled with Node.
 - No external npm packages are required.
 
-The current OmniRush worker did not have Node.js or Docker installed, so full Node and container checks are explicitly marked blocked in `docs/status.md`. The POSIX static smoke suite can still run in the worker.
+The default OmniRush worker PATH did not include Node.js or Docker. The full Node suite was later verified with a temporary, pinned Node 22.14.0 runtime; Docker remains unavailable. The POSIX static smoke suite also runs without Node.
 
 ## Setup
 
