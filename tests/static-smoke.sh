@@ -34,6 +34,9 @@ perl -0e '
   my @checks = (
     ["$root/public/index.html", qr/Reclaim Labs/],
     ["$root/public/app.mjs", qr/localStorage/],
+    ["$root/public/app.mjs", qr/data-action="create-case"/],
+    ["$root/public/app.mjs", qr/target\.dataset\.action === .wizard-check./],
+    ["$root/public/app.mjs", qr/target\.dataset\.action === .case-check./],
     ["$root/src/domain/rules.mjs", qr/possible-match/],
     ["$root/src/domain/rules.mjs", qr/user-reported-resolved/],
     ["$root/src/domain/assistant.mjs", qr/deterministic-fallback/],

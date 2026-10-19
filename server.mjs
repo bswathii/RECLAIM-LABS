@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 
 const projectRoot = resolve(fileURLToPath(new URL('./', import.meta.url)));
 const publicRoot = resolve(fileURLToPath(new URL('./public/', import.meta.url)));
+const sourceRoot = resolve(fileURLToPath(new URL('./src/', import.meta.url)));
 const port = Number(process.env.PORT || 3000);
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -19,10 +20,12 @@ const contentTypes = {
 function safePath(urlPath) {
   const pathname = decodeURIComponent((urlPath || '/').split('?')[0]);
   const isSourceModule = pathname.startsWith('/src/');
-  const requested = pathname === '/' ? '/index.html' : pathname;
-  const base = isSourceModule ? projectRoot : publicRoot;
+  const requested = isSourceModule
+    ? pathname.slice('/src/'.length)
+    : pathname === '/' ? '/index.html' : pathname;
+  const base = isSourceModule ? sourceRoot : publicRoot;
   const candidate = normalize(join(base, requested));
-  const allowedRoot = isSourceModule ? projectRoot : publicRoot;
+  const allowedRoot = isSourceModule ? sourceRoot : publicRoot;
   return candidate.startsWith(`${allowedRoot}${'\\'}`) || candidate.startsWith(`${allowedRoot}/`) ? candidate : null;
 }
 
