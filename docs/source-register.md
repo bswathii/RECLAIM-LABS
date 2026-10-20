@@ -11,9 +11,15 @@ The UI must not present an unverified record as a verified fact. `verified` mean
 | `SRC-RBI-UDGAM-PORTAL` | Reserve Bank of India | https://udgam.rbi.org.in/ | 2026-10-19 | official-destination | Open the official UDGAM search portal. The app does not reproduce portal results. |
 | `SRC-IEPFA-HOME` | IEPF Authority, Ministry of Corporate Affairs | https://www.iepf.gov.in/ | 2026-10-19 | access-blocked | Official destination for current IEPF instructions. The current audit could not retrieve the page, so this build does not present IEPF page details as verified facts. |
 | `SRC-MCA-HOME` | Ministry of Corporate Affairs | https://www.mca.gov.in/ | 2026-10-19 | access-blocked | Official destination for current MCA filing instructions. The current audit could not retrieve the page. |
+| `SRC-NSDL-IEPF-GUIDE` | National Securities Depository Limited (NSDL) | https://nsdl.com/an-investors-guide-to-claim-unclaimed-shares-and-dividends | 2026-10-20 | verified | NSDL publishes a general investor guide for checking and claiming unclaimed shares and unpaid dividends. It does not replace current institution-specific instructions. |
+| `SRC-DFS-UNCLAIMED-GATEWAY` | Department of Financial Services | https://www.unclaimedassetsportal.in/ | 2026-10-20 | official-destination | Existing government gateway/index for unclaimed-asset destinations. The fetcher returned only the page title, so detailed gateway behavior remains unverified. |
 
 ## Open verification questions
 
 - Recheck the current IEPF Authority instructions and MCA Form IEPF-5 flow from the official pages before treating any route-specific document requirement as verified.
 - Verify the current company/RTA suspense-account procedure from the relevant company/RTA source before adding institution-specific checklist requirements.
 - Verify whether any official notice feed can support individualized advance alerts. Until then, Reclaim Labs only supports user-created reminders.
+
+## Strategic landscape finding
+
+The official ecosystem already includes direct search destinations and an official financial gateway/index. Reclaim Labs is not differentiated by collecting links. Its current differentiation hypothesis is the guided, uncertainty-aware preparation layer: route questions, source-labelled explanations, non-sensitive checklists, user-reported case continuity, and clear separation between preparation and institution-confirmed outcomes. This is a product hypothesis, not validated market evidence.

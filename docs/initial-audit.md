@@ -67,7 +67,7 @@ The supplied blueprint proposed five launch categories and a broader MVP. The re
 ## First vertical-slice acceptance criteria
 
 - A stranger can choose IEPF, select a family/heir scenario, answer custody questions, and see a deterministic route.
-- The route is labelled `possible match` or `needs more information`, never confirmed.
+- The route is labelled `suggested route` or `needs more information`; because no registry search occurs, it is never labelled as an asset match.
 - The checklist distinguishes user acknowledgement from official verification and links to the source register.
 - The official IEPF/MCA destination can be opened without Reclaim Labs claiming to file anything.
 - A case can be created once, reopened from the tracker, and advanced only through valid statuses.

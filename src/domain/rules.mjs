@@ -8,12 +8,16 @@ export const IEPF_CUSTODY = Object.freeze({
 
 export const CASE_STATUS = Object.freeze({
   PREPARING: 'preparing',
-  OFFICIAL_SEARCH: 'official-search',
-  WAITING_ON_INSTITUTION: 'waiting-on-institution',
-  USER_REPORTED_RESOLVED: 'user-reported-resolved'
+  ACTION_REPORTED: 'action-reported',
+  SUBMISSION_REPORTED: 'submission-reported',
+  USER_REPORTED_RESOLVED: 'user-reported-resolved',
+  INSTITUTION_CONFIRMED: 'institution-confirmed',
+  // Legacy aliases keep previously saved demo cases and older callers readable.
+  OFFICIAL_SEARCH: 'action-reported',
+  WAITING_ON_INSTITUTION: 'submission-reported'
 });
 
-const ROUTE_SOURCE_IDS = ['SRC-IEPFA-HOME', 'SRC-MCA-HOME'];
+const ROUTE_SOURCE_IDS = ['SRC-IEPFA-HOME', 'SRC-MCA-HOME', 'SRC-NSDL-IEPF-GUIDE'];
 
 const ROUTES = Object.freeze({
   'iepf-form-5': {
@@ -30,7 +34,7 @@ const ROUTES = Object.freeze({
     shortTitle: 'Company / RTA handoff',
     nextAction: 'Ask the company or its official RTA to confirm whether the holding remains in a suspense account and what current steps apply.',
     rationale: 'You reported that the holding may still be with the company or RTA rather than IEPF. The institution must confirm the route.',
-    sourceIds: ROUTE_SOURCE_IDS
+    sourceIds: ['SRC-NSDL-IEPF-GUIDE']
   },
   'verify-custody': {
     id: 'verify-custody',
@@ -43,9 +47,9 @@ const ROUTES = Object.freeze({
 });
 
 const STATUS_TRANSITIONS = Object.freeze({
-  [CASE_STATUS.PREPARING]: [CASE_STATUS.OFFICIAL_SEARCH],
-  [CASE_STATUS.OFFICIAL_SEARCH]: [CASE_STATUS.PREPARING, CASE_STATUS.WAITING_ON_INSTITUTION],
-  [CASE_STATUS.WAITING_ON_INSTITUTION]: [CASE_STATUS.PREPARING, CASE_STATUS.USER_REPORTED_RESOLVED],
+  [CASE_STATUS.PREPARING]: [CASE_STATUS.ACTION_REPORTED],
+  [CASE_STATUS.ACTION_REPORTED]: [CASE_STATUS.PREPARING, CASE_STATUS.SUBMISSION_REPORTED],
+  [CASE_STATUS.SUBMISSION_REPORTED]: [CASE_STATUS.ACTION_REPORTED, CASE_STATUS.USER_REPORTED_RESOLVED],
   [CASE_STATUS.USER_REPORTED_RESOLVED]: []
 });
 
@@ -94,7 +98,9 @@ export function assessIepf(input = {}) {
       ? 'company-rta'
       : 'verify-custody';
   const route = ROUTES[routeId];
-  const confidence = missingInformation.length === 0 ? 'possible-match' : 'needs-more-information';
+  // No registry search has happened inside Reclaim Labs. A route suggestion
+  // must therefore never be labelled as a possible asset match.
+  const confidence = missingInformation.length === 0 ? 'suggested-route' : 'needs-more-information';
 
   return {
     workflow: 'iepf',
@@ -105,7 +111,7 @@ export function assessIepf(input = {}) {
     routeTitle: route.title,
     routeShortTitle: route.shortTitle,
     confidence,
-    confidenceLabel: confidence === 'possible-match' ? 'Possible match — user-reported inputs' : 'Needs more information',
+    confidenceLabel: confidence === 'suggested-route' ? 'Suggested route — user-reported inputs' : 'Needs more information',
     rationale: route.rationale,
     nextAction: route.nextAction,
     sourceIds: [...route.sourceIds],
@@ -117,7 +123,7 @@ export function assessIepf(input = {}) {
 }
 
 function checklistItem(id, title, detail, sourceIds, label = 'Prepare or verify') {
-  return { id, title, detail, sourceIds: [...sourceIds], label, checked: false };
+  return { id, title, detail, sourceIds: [...sourceIds], label, reviewed: false };
 }
 
 export function buildIepfChecklist(assessment) {
@@ -231,15 +237,22 @@ export function getAllowedNextStatuses(status) {
 
 export function getCaseProgress(caseRecord) {
   const checklist = Array.isArray(caseRecord?.checklist) ? caseRecord.checklist : [];
-  const checked = checklist.filter((item) => item.checked).length;
-  const statusComplete = caseRecord?.status === CASE_STATUS.USER_REPORTED_RESOLVED;
-  const total = checklist.length + 1;
-  const completed = checked + (statusComplete ? 1 : 0);
-  const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-  const nextAction = statusComplete
-    ? 'Keep the record for your own reference; Reclaim Labs has not verified an institutional outcome.'
+  const itemsReviewed = checklist.filter((item) => item.reviewed === true || item.checked === true).length;
+  const total = checklist.length;
+  const percentage = total === 0 ? 0 : Math.round((itemsReviewed / total) * 100);
+  const nextAction = caseRecord?.status === CASE_STATUS.USER_REPORTED_RESOLVED
+    ? 'Marked resolved by you. Reclaim Labs has not verified an institutional outcome.'
     : caseRecord?.nextAction || 'Review the preparation checklist.';
-  return { completed, total, percentage, nextAction };
+  return {
+    itemsReviewed,
+    // `completed` is retained as a compatibility alias for older local demo records.
+    completed: itemsReviewed,
+    total,
+    percentage,
+    nextAction,
+    status: caseRecord?.status || CASE_STATUS.PREPARING,
+    isInstitutionConfirmed: caseRecord?.status === CASE_STATUS.INSTITUTION_CONFIRMED
+  };
 }
 
 export function caseDeduplicationKey({ workflow, routeId, claimantType = '', companyName = '' } = {}) {
@@ -249,7 +262,7 @@ export function caseDeduplicationKey({ workflow, routeId, claimantType = '', com
 export function validateAssessment(assessment) {
   return Boolean(
     assessment &&
-    assessment.workflow === 'iepf' &&
+    (assessment.workflow === 'iepf' || assessment.workflow === 'udgam') &&
     typeof assessment.routeId === 'string' &&
     assessment.isOfficiallyConfirmed === false &&
     hasOnlyKnownSources(assessment.sourceIds)

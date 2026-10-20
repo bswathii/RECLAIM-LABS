@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { answerWithFallback, validateAssistantResponse } from '../src/domain/assistant.mjs';
+import { SUPPORTED_LANGUAGES, TRANSLATIONS, translate } from '../src/domain/i18n.mjs';
 import { hasOnlyKnownSources } from '../src/domain/sources.mjs';
 import {
   CASE_STATUS,
@@ -33,7 +34,7 @@ test('custody selects the correct IEPF route and every route cites known sources
   assert.equal(validateAssessment(unknown), true);
 });
 
-test('missing information cannot increase confidence and possible matches are never confirmed', () => {
+test('missing information cannot increase confidence and route suggestions are never asset matches', () => {
   const complete = assessIepf({
     claimantType: 'heir',
     custody: IEPF_CUSTODY.IEPF,
@@ -42,7 +43,9 @@ test('missing information cannot increase confidence and possible matches are ne
     heirAuthority: 'yes'
   });
   const incomplete = assessIepf({ claimantType: 'heir', custody: IEPF_CUSTODY.UNKNOWN });
-  assert.equal(complete.confidence, 'possible-match');
+  assert.equal(complete.confidence, 'suggested-route');
+  assert.match(complete.confidenceLabel, /Suggested route/);
+  assert.doesNotMatch(complete.confidenceLabel, /Possible match/i);
   assert.equal(incomplete.confidence, 'needs-more-information');
   assert.equal(complete.isOfficiallyConfirmed, false);
   assert.equal(incomplete.isOfficiallyConfirmed, false);
@@ -70,15 +73,21 @@ test('UDGAM plan exposes missing search inputs without collecting their values',
   assert.equal(plan.isOfficiallyConfirmed, false);
 });
 
-test('case status transitions reject invalid transitions and progress is derived from state', () => {
-  assert.equal(canTransitionCaseStatus(CASE_STATUS.PREPARING, CASE_STATUS.OFFICIAL_SEARCH), true);
+test('case status transitions distinguish reported action, reported submission, and resolution', () => {
+  assert.equal(canTransitionCaseStatus(CASE_STATUS.PREPARING, CASE_STATUS.ACTION_REPORTED), true);
+  assert.equal(canTransitionCaseStatus(CASE_STATUS.ACTION_REPORTED, CASE_STATUS.SUBMISSION_REPORTED), true);
+  assert.equal(canTransitionCaseStatus(CASE_STATUS.SUBMISSION_REPORTED, CASE_STATUS.USER_REPORTED_RESOLVED), true);
   assert.equal(canTransitionCaseStatus(CASE_STATUS.PREPARING, CASE_STATUS.USER_REPORTED_RESOLVED), false);
   const progress = getCaseProgress({
     status: CASE_STATUS.PREPARING,
     nextAction: 'Review the checklist.',
-    checklist: [{ checked: true }, { checked: false }]
+    checklist: [{ reviewed: true }, { reviewed: false }]
   });
-  assert.deepEqual(progress, { completed: 1, total: 3, percentage: 33, nextAction: 'Review the checklist.' });
+  assert.equal(progress.itemsReviewed, 1);
+  assert.equal(progress.total, 2);
+  assert.equal(progress.percentage, 50);
+  assert.equal(progress.isInstitutionConfirmed, false);
+  assert.equal(progress.nextAction, 'Review the checklist.');
 });
 
 test('assistant fallback cites approved sources or refuses out-of-corpus questions', () => {
@@ -93,4 +102,17 @@ test('assistant fallback cites approved sources or refuses out-of-corpus questio
 test('assistant rejects invented source IDs and unsupported guarantee language', () => {
   assert.equal(validateAssistantResponse({ answer: 'A fact', status: 'grounded', sourceIds: ['NOT-A-SOURCE'] }).ok, false);
   assert.equal(validateAssistantResponse({ answer: 'You are guaranteed to recover it.', status: 'grounded', sourceIds: ['SRC-RBI-UDGAM-FAQ'] }).ok, false);
+});
+
+test('English and Hindi dictionaries cover the same core translation keys', () => {
+  const flatten = (value, prefix = '') => Object.entries(value).flatMap(([key, child]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return typeof child === 'string' ? [path] : flatten(child, path);
+  });
+  const englishKeys = new Set(flatten(TRANSLATIONS.en));
+  const hindiKeys = new Set(flatten(TRANSLATIONS.hi));
+  assert.deepEqual([...englishKeys].filter((key) => !hindiKeys.has(key)), []);
+  assert.deepEqual(SUPPORTED_LANGUAGES.map((language) => language.code), ['en', 'hi']);
+  assert.equal(translate('ui.home.title', 'hi'), 'क्या आपके परिवार के पैसे या शेयर छूट गए हो सकते हैं?');
+  assert.equal(translate('ui.cases.stepsReviewed', 'en', { reviewed: 1, total: 2 }), '1 / 2');
 });

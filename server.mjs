@@ -18,7 +18,13 @@ const contentTypes = {
 };
 
 function safePath(urlPath) {
-  const pathname = decodeURIComponent((urlPath || '/').split('?')[0]);
+  let pathname;
+  try {
+    pathname = decodeURIComponent((urlPath || '/').split('?')[0]);
+  } catch {
+    return null;
+  }
+
   const isSourceModule = pathname.startsWith('/src/');
   const requested = isSourceModule
     ? pathname.slice('/src/'.length)
@@ -30,6 +36,16 @@ function safePath(urlPath) {
 }
 
 const server = createServer((request, response) => {
+  const requestPath = (request.url || '').split('?')[0];
+  if (requestPath === '/healthz') {
+    response.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff'
+    });
+    response.end(JSON.stringify({ ok: true, service: 'reclaim-labs' }));
+    return;
+  }
   const filePath = safePath(request.url);
   if (!filePath) {
     response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
@@ -53,5 +69,7 @@ const server = createServer((request, response) => {
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Reclaim Labs is running at http://localhost:${port}`);
+  const address = server.address();
+  const listeningPort = typeof address === 'object' && address ? address.port : port;
+  console.log(`Reclaim Labs is running at http://localhost:${listeningPort}`);
 });

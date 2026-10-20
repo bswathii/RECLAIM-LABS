@@ -61,6 +61,31 @@ export const SOURCES = Object.freeze([
     confidenceLabel: 'Official destination — page not verified in this audit',
     supports: ['Open the official MCA destination for current filing instructions.'],
     openQuestions: ['The research fetcher received HTTP 403. Re-verify current MCA instructions before relying on procedural details.']
+  },
+  {
+    id: 'SRC-NSDL-IEPF-GUIDE',
+    institution: 'National Securities Depository Limited (NSDL)',
+    title: 'Investor guide to unclaimed shares and dividends',
+    url: 'https://nsdl.com/an-investors-guide-to-claim-unclaimed-shares-and-dividends',
+    accessedOn: '2026-10-20',
+    status: 'verified',
+    confidenceLabel: 'Verified source',
+    supports: [
+      'NSDL publishes an investor guide explaining the official process for checking and claiming unclaimed shares and unpaid dividends.',
+      'The guide is presented as a general explanation and does not replace the current IEPF Authority, MCA, company, or RTA instructions.'
+    ],
+    openQuestions: ['Confirm the current institution-specific route and document requirements before a user acts.']
+  },
+  {
+    id: 'SRC-DFS-UNCLAIMED-GATEWAY',
+    institution: 'Department of Financial Services',
+    title: 'Official Financial Gateway',
+    url: 'https://www.unclaimedassetsportal.in/',
+    accessedOn: '2026-10-20',
+    status: 'official-destination',
+    confidenceLabel: 'Official destination',
+    supports: ['The government gateway is an existing official index for unclaimed-asset destinations; Reclaim Labs must add guidance and follow-through rather than claim to be the registry.'],
+    openQuestions: ['The research fetcher returned only the page title. Recheck current categories and redirect behavior before relying on detailed gateway claims.']
   }
 ]);
 

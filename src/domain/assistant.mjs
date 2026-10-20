@@ -1,4 +1,5 @@
 import { hasOnlyKnownSources } from './sources.mjs';
+import { resolveLanguage, translate } from './i18n.mjs';
 
 const UNSUPPORTED_LANGUAGE = /(guarantee|guaranteed|you are owed|claim approved|officially confirmed|exact amount|deadline date)/i;
 
@@ -7,39 +8,28 @@ function fallbackResponse(answer, sourceIds, reason = 'provider-not-configured',
 }
 
 export function answerWithFallback(question, { language = 'en' } = {}) {
+  const selectedLanguage = resolveLanguage(language);
   const normalized = String(question || '').trim().toLowerCase();
   if (!normalized) {
-    return fallbackResponse('Ask about the IEPF route, UDGAM search preparation, or what Reclaim Labs does not verify.', []);
+    return fallbackResponse(translate('assistant.emptyQuestion', selectedLanguage), []);
   }
 
   if (normalized.includes('udgam') || normalized.includes('bank deposit') || normalized.includes('bank')) {
-    if (language === 'hi') {
-      return fallbackResponse(
-        'RBI के अनुसार UDGAM कई भाग लेने वाले बैंकों में लावारिस जमा या खातों की खोज की सुविधा देता है। दावा UDGAM से नहीं, संबंधित बैंक से किया जाता है।',
-        ['SRC-RBI-UDGAM-FAQ']
-      );
-    }
     return fallbackResponse(
-      'RBI describes UDGAM as a search facility for unclaimed deposits/accounts across participating banks. UDGAM does not settle the claim; the claim is made with the respective bank.',
+      translate('assistant.udgamFallback', selectedLanguage),
       ['SRC-RBI-UDGAM-FAQ']
     );
   }
 
   if (normalized.includes('iepf') || normalized.includes('share') || normalized.includes('dividend') || normalized.includes('heir')) {
-    if (language === 'hi') {
-      return fallbackResponse(
-        'IEPF/MCA की वर्तमान प्रक्रिया को आधिकारिक वेबसाइट पर स्वयं जाँचें। Reclaim Labs संभावित अगला कदम समझाता है, पात्रता या आधिकारिक परिणाम की पुष्टि नहीं करता।',
-        ['SRC-IEPFA-HOME', 'SRC-MCA-HOME']
-      );
-    }
     return fallbackResponse(
-      'Check the current IEPF Authority and MCA instructions yourself. Reclaim Labs can explain a possible next step, but it cannot confirm eligibility, the existence of shares, or an official outcome.',
+      translate('assistant.iepfFallback', selectedLanguage),
       ['SRC-IEPFA-HOME', 'SRC-MCA-HOME']
     );
   }
 
   return fallbackResponse(
-    'I can explain the verified UDGAM search guidance or the IEPF handoff. I cannot determine whether an asset exists, approve a claim, provide an amount, or give legal advice.',
+    translate('assistant.unsupported', selectedLanguage),
     [],
     'out-of-corpus',
     'refused'

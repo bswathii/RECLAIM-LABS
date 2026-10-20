@@ -1,6 +1,6 @@
 # Reclaim Labs
 
-Reclaim Labs is a source-traceable recovery preparation companion for India. The launch build covers exactly two official destinations:
+Reclaim Labs is a source-traceable recovery preparation companion for India. The launch build covers exactly two financial journeys:
 
 - **IEPF** for unclaimed shares and dividends, with a family/heir assessment and route distinction between a possible company/RTA suspense path and a possible IEPF/MCA path.
 - **RBI UDGAM** for preparing an official unclaimed-deposit search.
@@ -9,7 +9,7 @@ It does not confirm that an asset exists, estimate a recovery amount, file a cla
 
 ## Current implementation
 
-This is a dependency-free Node 22 web app. The browser uses local demo persistence only; there is no authentication, database, document upload, portal scraping, or government-portal credential handling. Every screen carries a synthetic-demo banner.
+This is a dependency-free Node 22 web app with exactly five primary destinations: **Home, Discover, Cases, Assistant, and Settings**. The browser uses local demo persistence only; there is no authentication, database, document upload, portal scraping, or government-portal credential handling. Every screen carries a synthetic-demo banner.
 
 The rules engine is in `src/domain/rules.mjs`. Source records are in `src/domain/sources.mjs`. The assistant is currently a deterministic, source-labelled fallback. The Qwen3-8B boundary is documented and kept server-side, but no provider endpoint is configured.
 
@@ -35,7 +35,7 @@ There are no runtime dependencies; `npm ci` verifies the lockfile and creates th
 npm start
 ```
 
-Open <http://localhost:3000>. The server is a small Node built-in HTTP server and serves only the `public/` directory.
+Open <http://localhost:3000>. The server is a small Node built-in HTTP server that serves `public/`, the read-only browser domain modules under `/src/`, and `/healthz`. It rejects malformed encodings and path traversal.
 
 ## Test
 
@@ -45,7 +45,7 @@ The one project test command is:
 sh ./test.sh
 ```
 
-With Node.js, it runs the full Node test suite (`node --test`) covering deterministic routes, source IDs, confidence boundaries, checklist safety, UDGAM preparation, status transitions, progress, fallback citations, and unsupported-answer rejection. Without Node.js, it runs the available offline static smoke suite and says that behavioral tests remain blocked.
+With Node.js, it runs the full Node test suite (`node --test`) covering deterministic routes, source IDs, confidence boundaries, checklist safety, UDGAM preparation, status semantics, progress, English/Hindi translation coverage, fallback citations, unsupported-answer rejection, malformed URLs, health, and path traversal. Without Node.js, it runs the available offline static smoke suite and says that behavioral tests remain blocked.
 
 ## Docker build and run
 
@@ -55,6 +55,7 @@ docker run --rm -p 3000:3000 reclaim-labs
 ```
 
 The Docker build runs `npm test` in the checks stage before producing the runtime image.
+The runtime image copies only the server, public assets, and browser domain modules, runs as the non-root `node` user, and exposes a `/healthz` health check. Docker is not installed in the current worker, so an actual image build remains unverified.
 
 ## Deployment
 
@@ -66,15 +67,23 @@ The permitted model identifier is `Qwen/Qwen3-8B`. The repository contains `.env
 
 ## Repeatable demo walkthrough
 
-1. Start in synthetic demo mode and read the trust boundary.
-2. Choose **IEPF**, select **Family / heir**, and choose either **Already with IEPF** or **Company/RTA suspense**. Leave custody unknown once to see the information gap state.
-3. Answer only whether family/heir evidence is available; do not enter sensitive documents.
-4. Review the route, confidence label, evidence gaps, source chips, and preparation checklist.
-5. Open the official IEPF/MCA destination yourself, then create a demo case.
-6. Open **Tracker**, check preparation items, and advance the case through the allowed statuses.
-7. Reset demo data from **Privacy** to repeat the flow.
-8. Try **UDGAM** and confirm that the app prepares the search without collecting an account number or credentials.
-9. Ask the assistant about UDGAM or IEPF. The UI identifies the deterministic fallback; it does not pretend Qwen is connected.
+1. Start on **Home** in synthetic demo mode and read the trust boundary.
+2. Open **Discover → IEPF**. Explicitly choose **Family / heir**; no legally meaningful option is preselected.
+3. Choose **Not sure yet** for custody and leave the company label empty to see the information gap state.
+4. Review **Here is the next place to check**, the suggested route, the four evidence sections, sources, and preparation checklist. The app must not call this an asset match.
+5. Open the appropriate official destination yourself, then create a local demo case.
+6. Open **Cases**, review preparation items, report an external action, report a submission, and optionally mark it resolved by you. These are not institution-confirmed outcomes.
+7. Open **Settings** to inspect local-only storage, source status, language, export, and the confirmed reset action.
+8. Repeat with **Discover → UDGAM**. Confirm that the app prepares the search without collecting account numbers or credentials.
+9. Ask **Assistant** about UDGAM or IEPF. The UI identifies the deterministic fallback and follows the selected English/Hindi language; it does not pretend Qwen is connected.
+
+## Supported languages
+
+English and Hindi cover the complete core experience and are backed by centralized dictionaries and coverage tests. Kannada is intentionally not advertised until it can be fully translated and reviewed for procedural fidelity.
+
+## Storage and privacy
+
+Demo state is stored in `localStorage` under the `reclaim-labs-demo-v1` namespace. It remains in the current browser, is not cloud-synchronized, and may be lost when browser data is cleared. Reset requires confirmation and only removes this demo namespace. Do not enter Aadhaar, PAN, account numbers, passwords, OTPs, government-portal credentials, or document contents.
 
 ## Project records
 
@@ -85,3 +94,5 @@ The permitted model identifier is `Qwen/Qwen3-8B`. The repository contains `.env
 - `docs/status.md` — implementation and test status.
 - `docs/known-limitations.md` — blocked and unverified work.
 - `docs/backlog.md` — deferred work and revival conditions.
+- `docs/blueprint-compliance-audit.md` — requirement matrix with evidence, status, risk, and blockers.
+- `docs/manual-usability-test.md` — repeatable first-time-user, multilingual, keyboard, and responsive test plan.

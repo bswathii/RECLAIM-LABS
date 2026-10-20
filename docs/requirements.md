@@ -15,7 +15,7 @@ No EPF, insurance, post-office, mutual-fund, or other recovery workflow is in la
 
 - Explain the trust posture on the landing page.
 - Ask only non-sensitive, workflow-relevant questions.
-- Use labels such as `user-reported`, `official procedure`, `verified source`, `needs more information`, `possible match`, and `demo data`.
+- Use labels such as `user-reported`, `official procedure`, `verified source`, `needs more information`, `suggested route`, and `demo data`. Reserve `possible match` for a future genuine registry-search integration; the MVP must not use it without a search.
 - Never display a recovered amount, a guarantee, a fabricated deadline, or an official confirmation.
 - Provide source links and verification status beside procedural guidance.
 - Let the user create a local demo case, see its next action and progress, and return to its timeline.
