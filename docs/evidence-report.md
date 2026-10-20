@@ -79,9 +79,9 @@ The source register contains exact URLs, access dates, support statements and op
 
 ## Docker reproducibility evidence
 
-### Attempt in this environment
+### Verification in this environment
 
-The exact command `docker version` returned `docker: command not found`. Therefore no Docker image build, container startup, health check, restart, shutdown, clean rebuild, image-content inspection, or containerized journey can honestly be marked passed here.
+Docker Desktop 4.96.0 was available with a `linux/arm64` engine. `docker build --no-cache -t reclaim-labs:local .` completed successfully using the multi-architecture `node:22.14.0-bookworm-slim` base. The build-stage `npm test` reported 69 passing tests. A detached container was started on host port 3138; `/`, `/healthz`, and `POST /api/assistant` returned HTTP 200, with the assistant using `provider: "deterministic-fallback"` because no Qwen endpoint/key was supplied. A second container was held for eight seconds and reported Docker health status `healthy`; its `/healthz` returned HTTP 200. Logs showed `Reclaim Labs is running at http://localhost:3000`. Both containers were stopped and removed after verification.
 
 ### Reproduction commands for a machine with Docker
 
@@ -110,4 +110,4 @@ Expected fallback response includes `provider: "deterministic-fallback"`, a sour
 - **Real-user tests:** none.
 - **Independently verified real-case outcomes:** none.
 - **Live Qwen provider:** not verified in this environment; credentials/provider access are not part of the evidence above.
-- **Docker:** blocked by unavailable Docker executable in this environment; commands above remain the reproducibility procedure.
+- **Docker:** verified on Windows ARM64 Docker Desktop for build, 69-test build stage, container HTTP smoke, deterministic fallback, non-root runtime configuration and healthy healthcheck. A full visual browser click-through inside the container remains unverified.

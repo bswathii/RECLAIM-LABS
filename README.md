@@ -26,7 +26,7 @@ There is no authentication, server database, upload, portal scraping, credential
 - npm bundled with Node.
 - No external npm packages are required.
 
-The full suite is verified on pinned Node 22.14.0. Docker is unavailable in the development worker, so container build/run remains unverified. A POSIX shell and Perl are needed only for the reduced static fallback when Node is absent.
+The full suite is verified on pinned Node 22.14.0. Docker Desktop on Windows ARM64 is also verified for image build, container startup, health, HTTP smoke and deterministic fallback. A POSIX shell and Perl are needed only for the reduced static fallback when Node is absent.
 
 ## Setup
 
