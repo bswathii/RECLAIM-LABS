@@ -20,6 +20,10 @@ required_files="
   server/qwen-config.mjs
   scripts/check-qwen-config.mjs
   src/domain/i18n.mjs
+  src/domain/opportunities.mjs
+  src/domain/opportunity-copy.mjs
+  src/domain/case-events.mjs
+  tests/app-flow.test.mjs
   docs/requirements.md
   docs/architecture.md
   docs/source-register.md
@@ -60,7 +64,9 @@ perl -0e '
     ["$root/public/app.mjs", qr/data-view="discover"/],
     ["$root/public/app.mjs", qr/class="bottom-nav"/],
     ["$root/public/app.mjs", qr/claimantType:/],
-    ["$root/public/app.mjs", qr/window\.confirm\(t\(/]
+    ["$root/public/app.mjs", qr/window\.confirm\(prompt\)/],
+    ["$root/public/app.mjs", qr/DEMO DATA — NOT A REAL FINANCIAL MATCH/],
+    ["$root/src/domain/opportunities.mjs", qr/personal-evidence-required/]
   );
   for my $check (@checks) {
     my ($file, $pattern) = @$check;

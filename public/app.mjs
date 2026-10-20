@@ -1,6 +1,15 @@
 import { answerWithFallback, validateAssistantResponse } from '../src/domain/assistant.mjs';
 import { getSources, SOURCE_BY_ID, SOURCES } from '../src/domain/sources.mjs';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, resolveLanguage, translate } from '../src/domain/i18n.mjs';
+import { displayOpportunity } from '../src/domain/opportunity-copy.mjs';
+import { appendCaseEvent, setFollowUp, casesForMode } from '../src/domain/case-events.mjs';
+import {
+  OPPORTUNITY_STATE,
+  OPPORTUNITIES,
+  getOpportunityById,
+  scoreOpportunityRelevance,
+  searchOpportunities
+} from '../src/domain/opportunities.mjs';
 import {
   CASE_STATUS,
   IEPF_CUSTODY,
@@ -15,11 +24,52 @@ import {
 } from '../src/domain/rules.mjs';
 
 const STORAGE_KEY = 'reclaim-labs-demo-v1';
+const LOCAL_STORAGE_KEY = 'reclaim-labs-local-v2';
+let activeMode = 'real';
 const app = document.querySelector('#app');
 let toastTimer;
 
 function t(key, values = {}) {
+  const localCopy = {
+    'common.demoData': ['Your local records', 'आपके स्थानीय रिकॉर्ड'],
+    'ui.cases.demo': ['User-reported local data', 'उपयोगकर्ता द्वारा बताया स्थानीय डेटा'],
+    'ui.cases.created': ['Preparation case created', 'तैयारी केस बनाया गया'],
+    'ui.workflow.trackedBody': ['Saved in this browser only. Not a filing receipt or institutional confirmation.', 'केवल इस ब्राउज़र में सहेजा गया। फाइलिंग रसीद या संस्था की पुष्टि नहीं।'],
+    'ui.workflow.createCase': ['Save local preparation case', 'स्थानीय तैयारी केस सहेजें'],
+    'workflow.caseCreated': ['Preparation case saved', 'तैयारी केस सहेजा गया'],
+    'workflow.caseCount': [`${values.count ?? 0} local case(s)`, `${values.count ?? 0} स्थानीय केस`],
+    'ui.settings.description': ['Language, local storage, source guidance, export and deletion controls.', 'भाषा, स्थानीय स्टोरेज, स्रोत मार्गदर्शन, निर्यात और हटाने के नियंत्रण।'],
+    'ui.settings.storageDescription': ['Your preparation records stay in this browser, are not cloud-synchronized, and may be lost if browser data is cleared.', 'आपके तैयारी रिकॉर्ड इसी ब्राउज़र में हैं, क्लाउड-सिंक नहीं हैं, और ब्राउज़र डेटा साफ़ होने पर खो सकते हैं।'],
+    'ui.settings.storedTitle': ['What is stored locally', 'स्थानीय रूप से क्या सहेजा जाता है'],
+    'ui.settings.storedBody': ['Non-sensitive discovery clues, confirmed evidence availability, cases, reviewed items, chosen follow-up dates and local user reports.', 'गैर-संवेदनशील खोज संकेत, प्रमाण उपलब्धता की पुष्टि, केस, देखे गए आइटम, चुनी समीक्षा तिथियाँ और स्थानीय रिपोर्ट।'],
+    'ui.settings.notStoredTitle': ['Do not enter sensitive records', 'संवेदनशील रिकॉर्ड दर्ज न करें'],
+    'ui.settings.exportTitle': ['Export local records', 'स्थानीय रिकॉर्ड निर्यात करें'],
+    'ui.settings.exportBody': ['Download your local preparation state. This is not an official record.', 'अपनी स्थानीय तैयारी स्थिति डाउनलोड करें। यह आधिकारिक रिकॉर्ड नहीं है।'],
+    'ui.settings.exportAction': ['Download local JSON', 'स्थानीय JSON डाउनलोड करें'],
+    'ui.settings.resetTitle': ['Delete local preparation records', 'स्थानीय तैयारी रिकॉर्ड हटाएँ'],
+    'ui.settings.resetBody': ['Deletes only the active local workspace. Isolated demo records and official institutions are unaffected.', 'केवल सक्रिय स्थानीय कार्यक्षेत्र हटाता है। अलग डेमो रिकॉर्ड और आधिकारिक संस्थाओं पर असर नहीं पड़ता।'],
+    'ui.settings.resetAction': ['Delete local records', 'स्थानीय रिकॉर्ड हटाएँ'],
+    'reset.action': ['Clear local workspace', 'स्थानीय कार्यक्षेत्र साफ़ करें']
+  };
+  if (activeMode === 'real' && localCopy[key]) return state.language === 'hi' ? localCopy[key][1] : localCopy[key][0];
   return translate(key, { language: state.language, ...values });
+}
+
+function bilingual(english, hindi) {
+  return state.language === 'hi' ? hindi : english;
+}
+
+function switchMode() {
+  persist();
+  activeMode = activeMode === 'demo' ? 'real' : 'demo';
+  Object.assign(state, loadState());
+  render();
+}
+
+function modeNotice() {
+  return activeMode === 'demo'
+    ? 'DEMO DATA — NOT A REAL FINANCIAL MATCH'
+    : bilingual('Real catalogue · Your own local preparation records · No individual database search', 'वास्तविक कैटलॉग · आपके स्थानीय तैयारी रिकॉर्ड · व्यक्तिगत डेटाबेस खोज नहीं');
 }
 
 function statusLabel(status) {
@@ -38,23 +88,47 @@ function statusAction(status, language = (typeof state === 'undefined' ? DEFAULT
 }
 
 const state = loadState();
+if (typeof location !== 'undefined') {
+  const destination = location.hash.slice(1);
+  if (['home', 'discover', 'cases', 'assistant', 'settings'].includes(destination)) {
+    state.view = destination;
+    if (destination === 'discover') state.wizardSuspended = true;
+  }
+}
 
 function defaultState() {
   return {
     view: 'home',
     language: DEFAULT_LANGUAGE,
     wizard: null,
+    wizardSuspended: false,
+    discovery: {
+      query: '',
+      category: '',
+      institution: '',
+      product: '',
+      clues: '',
+      evidenceKind: '',
+      evidenceConfirmed: false,
+      conflictingEvidence: false,
+      verification: '',
+      selectedId: '',
+      results: searchOpportunities('').map((item) => item.id)
+    },
     cases: [],
+    study: null,
+    studyResults: [],
     assistantAnswer: null,
     toast: '',
-    storageWarning: false
+    storageWarning: false,
+    mode: activeMode
   };
 }
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (!saved || saved.demoMode !== true) return { ...defaultState(), demoMode: true };
+    const saved = JSON.parse(localStorage.getItem(activeMode === 'demo' ? STORAGE_KEY : LOCAL_STORAGE_KEY) || 'null');
+    if (!saved) return { ...defaultState(), demoMode: activeMode === 'demo' };
     const legacyViewMap = { tracker: 'cases', sources: 'settings', privacy: 'settings', workflow: 'discover' };
     const savedView = legacyViewMap[saved.view] || saved.view;
     return {
@@ -62,20 +136,26 @@ function loadState() {
       ...saved,
       view: ['home', 'discover', 'cases', 'assistant', 'settings'].includes(savedView) ? savedView : 'home',
       language: resolveLanguage(saved.language),
-      demoMode: true,
+      discovery: {
+        ...defaultState().discovery,
+        ...(saved.discovery || {}),
+        results: Array.isArray(saved.discovery?.results) ? saved.discovery.results : defaultState().discovery.results
+      },
+      mode: activeMode,
+      demoMode: activeMode === 'demo',
       cases: Array.isArray(saved.cases)
-        ? saved.cases.filter((item) => item?.demo === true).map((item) => normalizeCase(item, saved.language))
+        ? casesForMode(saved.cases, activeMode).map((item) => normalizeCase(item, saved.language))
         : []
     };
   } catch {
-    return { ...defaultState(), demoMode: true, storageWarning: true };
+    return { ...defaultState(), demoMode: activeMode === 'demo', storageWarning: true };
   }
 }
 
 function persist() {
-  const snapshot = { ...state, demoMode: true, toast: '' };
+  const snapshot = { ...state, mode: activeMode, demoMode: activeMode === 'demo', toast: '' };
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(activeMode === 'demo' ? STORAGE_KEY : LOCAL_STORAGE_KEY, JSON.stringify(snapshot));
     state.storageWarning = false;
     return true;
   } catch {
@@ -86,21 +166,22 @@ function persist() {
 }
 
 function resetDemo() {
-  if (!window.confirm(t('reset.confirm'))) {
+  const prompt = activeMode === 'demo' ? t('reset.confirm') : bilingual('Delete all your local cases and unfinished answers in this browser? The isolated demo is not affected.', 'इस ब्राउज़र के आपके स्थानीय केस और अधूरे उत्तर हटाएँ? अलग डेमो पर असर नहीं होगा।');
+  if (!window.confirm(prompt)) {
     showToast(t('reset.cancelled'));
     render();
     return;
   }
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(activeMode === 'demo' ? STORAGE_KEY : LOCAL_STORAGE_KEY);
   } catch {
     state.storageWarning = true;
     showToast(t('reset.failed'));
     render();
     return;
   }
-  Object.assign(state, defaultState(), { demoMode: true });
-  showToast(t('reset.completed'));
+  Object.assign(state, defaultState(), { demoMode: activeMode === 'demo' });
+  showToast(activeMode === 'demo' ? t('reset.completed') : bilingual('Local records cleared.', 'स्थानीय रिकॉर्ड हटा दिए गए।'));
   render();
 }
 
@@ -112,7 +193,8 @@ function normalizeCase(record, language = DEFAULT_LANGUAGE) {
     'official-search': CASE_STATUS.ACTION_REPORTED,
     'waiting-on-institution': CASE_STATUS.SUBMISSION_REPORTED
   };
-  const status = legacyStatus[record?.status] || record?.status || CASE_STATUS.PREPARING;
+  const candidateStatus = legacyStatus[record?.status] || record?.status;
+  const status = [CASE_STATUS.PREPARING, CASE_STATUS.ACTION_REPORTED, CASE_STATUS.SUBMISSION_REPORTED, CASE_STATUS.USER_REPORTED_RESOLVED].includes(candidateStatus) ? candidateStatus : CASE_STATUS.PREPARING;
   return {
     ...record,
     status,
@@ -173,7 +255,7 @@ function sourceChipLabel(source) {
     'SRC-NSDL-IEPF-GUIDE': 'source.nsdlGuide',
     'SRC-DFS-UNCLAIMED-GATEWAY': 'source.dfsGateway'
   };
-  return labels[source.id] ? t(labels[source.id]) : source.institution;
+  return labels[source.id] ? t(`ui.${labels[source.id]}`) : source.institution;
 }
 
 function sourceStatusPill(source) {
@@ -194,6 +276,22 @@ function localizedRoute(routeId, field) {
   return key ? t(key) : routeId;
 }
 
+function caseOpportunity(record) {
+  return record?.opportunityId ? getOpportunityById(record.opportunityId) : null;
+}
+
+function caseTitle(record) {
+  const opportunity = caseOpportunity(record);
+  return opportunity ? displayOpportunity(opportunity, state.language).title : localizedRoute(record.routeId, 'title');
+}
+
+function caseNextAction(record, progress = null) {
+  const opportunity = caseOpportunity(record);
+  if (record?.status === CASE_STATUS.PREPARING && opportunity) return t('ui.opportunity.nextActionBody');
+  if (record?.status === CASE_STATUS.PREPARING) return localizedRoute(record.routeId, 'nextAction');
+  return statusAction(record.status);
+}
+
 function localizedMissing(item, workflow) {
   const keyMap = workflow === 'udgam'
     ? {
@@ -212,6 +310,11 @@ function localizedMissing(item, workflow) {
 }
 
 function localizedChecklistItem(item, context = {}) {
+  if (item.id?.startsWith('opportunity-') && context.opportunity) {
+    const opportunity = displayOpportunity(context.opportunity, state.language);
+    const prompt = opportunity.eligibilityEvidencePrompts.find((entry) => `opportunity-${entry.id}` === item.id);
+    if (prompt) return { ...item, title: prompt.label, detail: `${prompt.question} ${prompt.evidenceHint}`, label: bilingual('Preparation prompt — not a verified document requirement', 'तैयारी का संकेत — सत्यापित आवश्यक दस्तावेज़ नहीं') };
+  }
   const assessment = context.assessment || context.plan || {};
   const titleKeys = {
     'confirm-route': 'iepf.checklistRoute',
@@ -233,7 +336,7 @@ function localizedChecklistItem(item, context = {}) {
     'udgam-extra': 'udgam.checklistAdditionalDetail',
     'udgam-handoff': 'udgam.checklistOfficialDetail'
   };
-  const labelKey = item.id.startsWith('udgam-') ? 'workflow.officialProcedure' : item.id === 'official-handoff' ? 'workflow.officialHandoff' : item.id === 'heir-evidence' || item.id === 'issuer-reference' ? 'ui.common.userReportedNotVerified' : 'workflow.officialProcedure';
+  const labelKey = item.id.startsWith('udgam-') ? 'common.officialProcedure' : item.id === 'official-handoff' ? 'workflow.officialHandoff' : item.id === 'heir-evidence' || item.id === 'issuer-reference' ? 'ui.common.userReportedNotVerified' : 'common.officialProcedure';
   return {
     ...item,
     title: titleKeys[item.id] ? t(titleKeys[item.id]) : item.title,
@@ -252,6 +355,8 @@ function languageSelector(id = '') {
 }
 
 function render() {
+  document.documentElement.lang = state.language;
+  if (typeof history !== 'undefined' && typeof location !== 'undefined' && location.hash !== `#${state.view}`) history.replaceState(null, '', `#${state.view}`);
   const body = state.view === 'home'
     ? renderHome()
     : state.view === 'discover'
@@ -282,7 +387,8 @@ function render() {
       </header>
       <div class="demo-banner">
         <div class="topbar-inner demo-banner-inner">
-          <span><strong>${escapeHtml(t('common.demoData'))}.</strong> ${escapeHtml(t('privacy.noRealRecords'))}</span>
+          <span><strong>${escapeHtml(modeNotice())}</strong></span>
+          <button type="button" data-action="switch-mode">${escapeHtml(activeMode === 'demo' ? bilingual('Use real catalogue', 'वास्तविक कैटलॉग खोलें') : bilingual('Try isolated demo', 'अलग डेमो आज़माएँ'))}</button>
           <button type="button" data-action="reset-demo">${escapeHtml(t('reset.action'))}</button>
         </div>
       </div>
@@ -298,7 +404,7 @@ function render() {
       <footer class="footer">
         <div class="footer-inner">
           <span>${escapeHtml(t('trust.guidanceLayer'))}</span>
-          <span>${escapeHtml(t('ui.settings.checked'))} 19 Oct 2026 · ${escapeHtml(t('workflow.caseCount', { count: state.cases.length }))}</span>
+          <span>${escapeHtml(t('workflow.caseCount', { count: state.cases.length }))} · ${escapeHtml(bilingual('Source check dates are shown per record', 'हर रिकॉर्ड की स्रोत जाँच तिथि दिखाई गई है'))}</span>
         </div>
       </footer>
       ${state.toast ? `<div class="toast" role="status">${escapeHtml(state.toast)}</div>` : ''}
@@ -380,15 +486,131 @@ function renderHomeCaseSummary() {
     <div class="section-heading" style="margin-top:0"><div><p class="eyebrow">${escapeHtml(t('ui.cases.eyebrow'))}</p><h2 id="home-cases-title">${escapeHtml(t('ui.cases.title'))}</h2></div><button class="button secondary small" type="button" data-action="navigate" data-view="cases">${escapeHtml(t('navigation.cases'))}</button></div>
     <div class="home-case-list">${state.cases.slice(0, 3).map((record) => {
       const progress = getCaseProgress(record);
-      const nextAction = record.status === CASE_STATUS.PREPARING ? localizedRoute(record.routeId, 'nextAction') : progress.nextAction;
-      return `<article class="home-case"><div><strong>${escapeHtml(localizedRoute(record.routeId, 'title'))}</strong><span>${escapeHtml(statusLabel(record.status))}</span></div><div><strong>${escapeHtml(t('ui.cases.nextAction'))}</strong><span>${escapeHtml(nextAction)}</span></div><button class="button ghost small" type="button" data-action="navigate" data-view="cases">${escapeHtml(t('ui.cases.title'))}</button></article>`;
+      const nextAction = caseNextAction(record, progress);
+      return `<article class="home-case"><div><strong>${escapeHtml(caseTitle(record))}</strong><span>${escapeHtml(statusLabel(record.status))}</span></div><div><strong>${escapeHtml(t('ui.cases.nextAction'))}</strong><span>${escapeHtml(nextAction)}</span>${record.followUpDate ? `<span>${escapeHtml(bilingual('Your review date', 'आपकी समीक्षा तिथि'))}: ${escapeHtml(record.followUpDate)}</span>` : ''}</div><button class="button ghost small" type="button" data-action="navigate" data-view="cases">${escapeHtml(t('ui.cases.title'))}</button></article>`;
     }).join('')}</div>
   </section>`;
 }
 
 function renderDiscover() {
-  if (state.wizard) return renderWorkflow();
-  return `<section aria-labelledby="discover-title"><div class="section-heading"><div><p class="eyebrow">${escapeHtml(t('ui.discover.eyebrow'))}</p><h1 id="discover-title">${escapeHtml(t('ui.discover.title'))}</h1></div><p>${escapeHtml(t('ui.discover.description'))}</p></div><div class="info-box"><p>${escapeHtml(t('ui.discover.privacy'))}</p></div><div style="margin-top:1rem">${renderCategoryCards()}</div></section>`;
+  if (state.wizard && !state.wizardSuspended) return renderWorkflow();
+  return `<section aria-labelledby="discover-title">
+    <div class="section-heading"><div><p class="eyebrow">${escapeHtml(t('ui.discover.eyebrow'))}</p><h1 id="discover-title">${escapeHtml(t('ui.discover.title'))}</h1></div><p>${escapeHtml(t('ui.discover.description'))}</p></div>
+    <div class="info-box"><p>${escapeHtml(t('ui.discover.privacy'))}</p><p class="microcopy">${escapeHtml(t('ui.discover.catalogueNotice'))}</p></div>
+    ${renderOpportunityDiscovery()}
+    <div class="section-heading" style="margin-top:2rem"><div><p class="eyebrow">${escapeHtml(t('ui.discover.guidedEyebrow'))}</p><h2>${escapeHtml(t('ui.discover.guidedTitle'))}</h2></div><p>${escapeHtml(t('ui.discover.guidedDescription'))}</p></div>
+    <div style="margin-top:1rem">${renderCategoryCards()}</div>
+  </section>`;
+}
+
+function opportunityStatusLabel(opportunity) {
+  if (opportunity.status === 'official-destination') return t('ui.opportunity.officialDestination');
+  if (opportunity.status === 'verified-guidance') return t('ui.opportunity.verifiedGuidance');
+  if (opportunity.status === 'verified') return t('ui.opportunity.verifiedRoute');
+  return t('ui.opportunity.guidedJourney');
+}
+
+function opportunityCategoryLabel(category) {
+  if (category === 'unclaimed-bank-deposits') return t('ui.opportunity.bankCategory');
+  if (category === 'unclaimed-shares-dividends') return t('ui.opportunity.sharesCategory');
+  return t('ui.opportunity.assetsCategory');
+}
+
+function opportunityAccessLabel(record) {
+  return record.accessClass === 'D'
+    ? bilingual('D · User-assisted official portal search', 'D · आधिकारिक पोर्टल पर उपयोगकर्ता की खोज')
+    : record.accessClass === 'C' ? bilingual('C · Curated official public information', 'C · संकलित आधिकारिक सार्वजनिक जानकारी') : bilingual('E · Not sufficiently verified', 'E · पर्याप्त सत्यापन नहीं');
+}
+
+function opportunityStateLabel(result) {
+  if (result.state === OPPORTUNITY_STATE.NO_MATCH_IN_SOURCES_CHECKED) return bilingual('No match in this catalogue — official databases not searched', 'इस कैटलॉग में मिलान नहीं — आधिकारिक डेटाबेस नहीं खोजे गए');
+  const labels = {
+    [OPPORTUNITY_STATE.RELEVANT]: 'ui.opportunity.relevant',
+    [OPPORTUNITY_STATE.POTENTIAL_PERSONAL_MATCH]: 'ui.opportunity.potentialMatch',
+    [OPPORTUNITY_STATE.INSUFFICIENT_INFORMATION]: 'ui.opportunity.insufficient',
+    [OPPORTUNITY_STATE.NO_MATCH_IN_SOURCES_CHECKED]: 'ui.opportunity.noMatchChecked'
+  };
+  return t(labels[result.state] || 'ui.opportunity.relevant');
+}
+
+function opportunityEvidenceInput() {
+  const discovery = state.discovery || {};
+  return {
+    institution: discovery.institution,
+    product: discovery.product,
+    clues: discovery.clues,
+    confirmed: discovery.evidenceConfirmed === true,
+    personalEvidence: {
+      confirmed: discovery.evidenceConfirmed === true,
+      kind: discovery.evidenceKind,
+      institutionMatches: discovery.evidenceConfirmed === true,
+      productMatches: discovery.evidenceConfirmed === true
+    },
+    conflictingEvidence: discovery.conflictingEvidence === true
+  };
+}
+
+function renderOpportunityDiscovery() {
+  const discovery = state.discovery || defaultState().discovery;
+  const selected = discovery.selectedId ? getOpportunityById(discovery.selectedId) : null;
+  if (selected?.publicationStatus === 'published') return renderOpportunityDetails(selected);
+  const results = (discovery.results || []).map((id) => getOpportunityById(id)).filter((item) => item?.publicationStatus === 'published' && (!discovery.verification || item.status === discovery.verification));
+  return `<section class="opportunity-discovery panel" aria-labelledby="catalogue-title">
+    <div class="panel-header"><div><p class="eyebrow">${escapeHtml(t('ui.opportunity.eyebrow'))}</p><h2 id="catalogue-title">${escapeHtml(t('ui.opportunity.title'))}</h2><p>${escapeHtml(t('ui.opportunity.description'))}</p></div><span class="pill">${escapeHtml(t('ui.opportunity.catalogueBadge'))}</span></div>
+    <form data-form="opportunity-search" class="form-grid">
+      <div class="field"><label for="opportunity-query">${escapeHtml(t('ui.opportunity.searchLabel'))}</label><input id="opportunity-query" name="query" value="${escapeHtml(discovery.query)}" placeholder="${escapeHtml(t('ui.opportunity.searchPlaceholder'))}" autocomplete="off" /></div>
+      <div class="field"><label for="opportunity-category">${escapeHtml(t('ui.opportunity.categoryLabel'))}</label><select id="opportunity-category" name="category"><option value="">${escapeHtml(t('ui.opportunity.allCategories'))}</option><option value="unclaimed-shares-dividends" ${discovery.category === 'unclaimed-shares-dividends' ? 'selected' : ''}>${escapeHtml(t('ui.opportunity.sharesCategory'))}</option><option value="unclaimed-bank-deposits" ${discovery.category === 'unclaimed-bank-deposits' ? 'selected' : ''}>${escapeHtml(t('ui.opportunity.bankCategory'))}</option><option value="unclaimed-assets" ${discovery.category === 'unclaimed-assets' ? 'selected' : ''}>${escapeHtml(t('ui.opportunity.assetsCategory'))}</option></select></div>
+      <div class="field"><label for="opportunity-institution">${escapeHtml(t('ui.opportunity.institutionLabel'))}</label><input id="opportunity-institution" name="institution" value="${escapeHtml(discovery.institution)}" placeholder="${escapeHtml(t('ui.opportunity.institutionPlaceholder'))}" autocomplete="off" /></div>
+      <div class="field"><label for="opportunity-product">${escapeHtml(t('ui.opportunity.productLabel'))}</label><input id="opportunity-product" name="product" value="${escapeHtml(discovery.product)}" placeholder="${escapeHtml(t('ui.opportunity.productPlaceholder'))}" autocomplete="off" /></div>
+      <div class="field full"><label for="opportunity-clues">${escapeHtml(t('ui.opportunity.cluesLabel'))}</label><input id="opportunity-clues" name="clues" value="${escapeHtml(discovery.clues)}" placeholder="${escapeHtml(t('ui.opportunity.cluesPlaceholder'))}" autocomplete="off" /><small>${escapeHtml(t('ui.opportunity.cluesHint'))}</small></div>
+      <div class="field"><label for="catalogue-verification">${escapeHtml(bilingual('Verification status', 'सत्यापन स्थिति'))}</label><select id="catalogue-verification" name="verification">${[['', bilingual('All published routes', 'सभी प्रकाशित मार्ग')], ['verified', t('ui.opportunity.verifiedRoute')], ['verified-guidance', t('ui.opportunity.verifiedGuidance')]].map(([value, label]) => `<option value="${value}" ${discovery.verification === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>
+      <div class="field"><label for="evidence-kind">${escapeHtml(bilingual('Personal evidence available (do not upload)', 'व्यक्तिगत संकेत उपलब्ध (अपलोड न करें)'))}</label><select id="evidence-kind" name="evidenceKind">${[['', bilingual('No evidence yet', 'अभी प्रमाण नहीं')], ['old-statement', bilingual('Old statement', 'पुराना विवरण')], ['share-certificate', bilingual('Share certificate', 'शेयर प्रमाणपत्र')], ['bank-correspondence', bilingual('Bank correspondence', 'बैंक का पत्र')], ['official-search-result', bilingual('My official search result', 'मेरा आधिकारिक खोज परिणाम')]].map(([value, label]) => `<option value="${value}" ${discovery.evidenceKind === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>
+      <label class="choice"><input type="checkbox" name="evidenceConfirmed" ${discovery.evidenceConfirmed ? 'checked' : ''}><span>${escapeHtml(bilingual('I checked the record myself: the institution and product relate to me or the family member I am helping. This is my report, not official verification.', 'मैंने रिकॉर्ड स्वयं देखा: संस्था और उत्पाद मेरे या जिस परिवार सदस्य की मदद कर रहा/रही हूँ उनसे जुड़े हैं। यह मेरी रिपोर्ट है, आधिकारिक पुष्टि नहीं।'))}</span></label>
+      <label class="choice"><input type="checkbox" name="conflictingEvidence" ${discovery.conflictingEvidence ? 'checked' : ''}><span>${escapeHtml(bilingual('Some evidence conflicts or I am unsure it relates to this person.', 'कुछ संकेत परस्पर विरोधी हैं या व्यक्ति से संबंध निश्चित नहीं है।'))}</span></label>
+      <div class="button-row full"><button class="button" type="submit">${escapeHtml(t('ui.opportunity.searchAction'))}</button><button class="button secondary" type="button" data-action="clear-opportunity-search">${escapeHtml(t('ui.opportunity.clearAction'))}</button></div>
+    </form>
+    <div class="opportunity-results" style="margin-top:1rem">${results.length ? results.map((opportunity) => renderOpportunityCard(opportunity, scoreOpportunityRelevance(opportunity, opportunityEvidenceInput()))).join('') : `<div class="empty-state"><h3>${escapeHtml(t('ui.opportunity.noResults'))}</h3><p>${escapeHtml(t('ui.opportunity.noResultsBody'))}</p></div>`}</div>
+  </section>`;
+}
+
+function renderOpportunityCard(opportunity, relevance) {
+  opportunity = displayOpportunity(opportunity, state.language);
+  return `<article class="opportunity-card card" aria-labelledby="opportunity-${escapeHtml(opportunity.id)}">
+    <div class="card-top"><span class="pill">${escapeHtml(opportunityCategoryLabel(opportunity.category))}</span><span class="pill ${relevance.state === OPPORTUNITY_STATE.POTENTIAL_PERSONAL_MATCH ? 'warning' : ''}">${escapeHtml(opportunityStateLabel(relevance))}</span></div>
+    <h3 id="opportunity-${escapeHtml(opportunity.id)}">${escapeHtml(opportunity.title)}</h3>
+    <p>${escapeHtml(opportunity.description)}</p>
+    <p class="microcopy"><strong>${escapeHtml(t('ui.opportunity.whyRelevant'))}:</strong> ${escapeHtml(relevance.matchedFields.length ? relevance.evidence.join(', ') : t('ui.opportunity.catalogueRelevance'))}</p>
+    <div class="pill-row"><span class="pill muted">${escapeHtml(opportunityStatusLabel(opportunity))}</span><span class="pill muted">${escapeHtml(t('ui.opportunity.checkedOn'))} ${escapeHtml(opportunity.verifiedOn)}</span></div>
+    <div class="button-row" style="margin-top:.8rem"><button class="button small" type="button" data-action="view-opportunity" data-opportunity-id="${escapeHtml(opportunity.id)}">${escapeHtml(t('ui.opportunity.viewDetails'))}</button></div>
+  </article>`;
+}
+
+function renderOpportunityDetails(opportunity) {
+  const relevance = scoreOpportunityRelevance(opportunity, opportunityEvidenceInput());
+  opportunity = displayOpportunity(opportunity, state.language);
+  const explanation = relevance.reasonCodes.includes('conflicting-evidence')
+    ? bilingual('Your evidence conflicts. Resolve which person, product and institution the record concerns before relying on this route.', 'आपके संकेतों में विरोध है। इस मार्ग पर भरोसा करने से पहले व्यक्ति, उत्पाद और संस्था का संबंध स्पष्ट करें।')
+    : relevance.state === OPPORTUNITY_STATE.POTENTIAL_PERSONAL_MATCH
+      ? bilingual('You explicitly reported checking personal evidence. We have not read the document or verified the result. This remains a lead for an official search.', 'आपने व्यक्तिगत संकेत स्वयं देखने की स्पष्ट सूचना दी। हमने दस्तावेज़ नहीं पढ़ा और परिणाम सत्यापित नहीं किया। यह आधिकारिक खोज के लिए केवल एक संकेत है।')
+      : bilingual('Institution and product words only establish topical relevance. A selected bank or company is not ownership evidence.', 'संस्था और उत्पाद के शब्द केवल विषय संबंधी प्रासंगिकता बताते हैं। चुनी गई बैंक या कंपनी स्वामित्व का प्रमाण नहीं है।');
+  return `<section class="panel opportunity-details" aria-labelledby="opportunity-detail-title">
+    <div class="panel-header"><div><button class="button ghost small" type="button" data-action="back-opportunities">← ${escapeHtml(t('ui.opportunity.backToResults'))}</button><p class="eyebrow">${escapeHtml(t('ui.opportunity.detailEyebrow'))}</p><h2 id="opportunity-detail-title">${escapeHtml(opportunity.title)}</h2><p>${escapeHtml(opportunity.description)}</p></div><span class="status-chip ${relevance.state === OPPORTUNITY_STATE.POTENTIAL_PERSONAL_MATCH ? 'warning' : ''}">${escapeHtml(opportunityStateLabel(relevance))}</span></div>
+    <div class="assessment-grid"><div class="assessment-card"><p class="eyebrow">${escapeHtml(t('ui.opportunity.whatItIs'))}</p><p>${escapeHtml(opportunity.description)}</p><p><strong>${escapeHtml(t('ui.opportunity.institutionLabel'))}:</strong> ${escapeHtml(opportunity.institution)}</p><p><strong>${escapeHtml(t('ui.opportunity.accessMode'))}:</strong> ${escapeHtml(opportunityAccessLabel(opportunity))}</p></div><div class="assessment-card"><p class="eyebrow">${escapeHtml(t('ui.opportunity.whyRecommended'))}</p><p>${escapeHtml(relevance.matchedFields.length ? relevance.evidence.join(', ') : t('ui.opportunity.catalogueReason'))}</p><p>${escapeHtml(explanation)}</p><p class="microcopy">${escapeHtml(t('ui.opportunity.personalMatchBoundary'))}</p></div></div>
+    <div class="panel" style="margin-top:1rem;background:#fbfcfa;box-shadow:none"><h3>${escapeHtml(t('ui.opportunity.eligibilityTitle'))}</h3><ul>${opportunity.eligibilityEvidencePrompts.map((prompt) => `<li><strong>${escapeHtml(prompt.label)}:</strong> ${escapeHtml(prompt.question)}<br><span class="microcopy">${escapeHtml(prompt.evidenceHint)}</span></li>`).join('')}</ul></div>
+    <div class="panel" style="margin-top:1rem;background:#fbfcfa;box-shadow:none"><h3>${escapeHtml(t('ui.opportunity.provenanceTitle'))}</h3><p><strong>${escapeHtml(t('ui.opportunity.checkedOn'))}:</strong> ${escapeHtml(opportunity.verifiedOn)} · <strong>${escapeHtml(t('ui.opportunity.dataDate'))}:</strong> ${escapeHtml(opportunity.recordDate || t('common.notRecorded'))}</p><p>${escapeHtml(opportunity.provenance.basis)}</p><div class="pill-row">${sourceChips(opportunity.sourceIds)}</div><ul>${opportunity.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>
+    <div class="panel" style="margin-top:1rem;background:#fbfcfa;box-shadow:none"><h3>${escapeHtml(t('ui.opportunity.nextActionTitle'))}</h3><p>${escapeHtml(t('ui.opportunity.nextActionBody'))}</p><div class="button-row"><a class="button" href="${escapeHtml(opportunity.officialUrl)}" target="_blank" rel="noreferrer">${escapeHtml(t('ui.opportunity.openOfficial'))}</a><button class="button secondary" type="button" data-action="save-opportunity-case" data-opportunity-id="${escapeHtml(opportunity.id)}">${escapeHtml(t('ui.opportunity.saveCase'))}</button>${opportunity.category !== 'unclaimed-assets' ? `<button class="button secondary" type="button" data-action="start-workflow" data-workflow="${opportunity.category === 'unclaimed-bank-deposits' ? 'udgam' : 'iepf'}">${escapeHtml(t('ui.discover.openJourney'))}</button>` : ''}</div></div>
+    ${state.study ? renderStudyCompletion(opportunity.id) : ''}
+  </section>`;
+}
+
+function renderStudyCompletion(opportunityId) {
+  return `<form class="panel" style="margin-top:1rem" data-form="study-result" data-opportunity-id="${escapeHtml(opportunityId)}"><h3>${escapeHtml(bilingual('Discovery test — your assessment', 'खोज परीक्षण — आपका आकलन'))}</h3><p>${escapeHtml(bilingual('This measures your experience, not an asset match or a population success rate.', 'यह आपके अनुभव को मापता है, संपत्ति मिलान या सभी उपयोगकर्ताओं की सफलता दर नहीं।'))}</p><label class="choice"><input type="checkbox" name="relevant"><span>${escapeHtml(bilingual('I found a route relevant to my situation.', 'मुझे अपनी स्थिति से जुड़ा मार्ग मिला।'))}</span></label><label class="choice"><input type="checkbox" name="understood"><span>${escapeHtml(bilingual('I can explain the next official action and what remains unverified.', 'मैं अगला आधिकारिक कदम और क्या असत्यापित है समझा सकता/सकती हूँ।'))}</span></label><button class="button" type="submit">${escapeHtml(bilingual('Finish timed test', 'समय परीक्षण समाप्त करें'))}</button></form>`;
+}
+
+function renderStudySettings() {
+  const results = state.studyResults || [];
+  const reportCounts = ['evidence-collected', 'portal-opened', 'submission-reported', 'response-reported', 'recovery-reported'].map((type) => `<li>${escapeHtml(eventLabel(type))}: ${state.cases.filter((record) => (record.events || []).some((event) => event.type === type)).length}</li>`).join('');
+  return `<article class="panel"><h2>${escapeHtml(bilingual('Measure discovery before monetization', 'कमाई से पहले खोज को मापें'))}</h2><p>${escapeHtml(bilingual('Optional local timed test. Start, find a route, and report whether it is relevant and understandable. No analytics is sent to a server. Compare with an official-portal-only task using the manual test plan.', 'वैकल्पिक स्थानीय समय परीक्षण। शुरू करें, मार्ग खोजें और बताएँ कि वह प्रासंगिक और समझने योग्य है या नहीं। सर्वर पर विश्लेषण नहीं भेजा जाता। मैनुअल परीक्षण योजना से केवल आधिकारिक पोर्टल वाले कार्य से तुलना करें।'))}</p><button class="button secondary" type="button" data-action="start-study">${escapeHtml(bilingual('Start timed discovery task', 'समयबद्ध खोज शुरू करें'))}</button><ul>${results.map((result) => `<li>${Math.round(result.elapsedMs / 1000)} ${escapeHtml(bilingual('seconds', 'सेकंड'))} · ${escapeHtml(bilingual('Relevant / understood next action', 'प्रासंगिक / अगला कदम समझा'))}: ${result.relevant ? '✓' : '—'} / ${result.understood ? '✓' : '—'} · ${escapeHtml(result.at.slice(0, 10))}</li>`).join('')}</ul><ul>${reportCounts}</ul><p class="microcopy">${escapeHtml(bilingual('Counts are local cases, not users. No user-study improvement has been demonstrated yet. Local observations are not independently verified outcomes. Recovery amounts are not inferred.', 'संख्याएँ स्थानीय केस हैं, उपयोगकर्ता नहीं। अभी उपयोगकर्ता अध्ययन में सुधार सिद्ध नहीं हुआ। स्थानीय अवलोकन स्वतंत्र रूप से सत्यापित परिणाम नहीं हैं। वापसी राशि का अनुमान नहीं लगाया जाता।'))}</p></article>`;
 }
 
 function renderStepper(active, labels) {
@@ -413,8 +635,8 @@ function yesNoChoice(name, current, title, detail) {
     <legend>${escapeHtml(title)}</legend>
     <p class="field-hint">${escapeHtml(detail)}</p>
     <div class="choice-grid">
-      ${choice(name, 'yes', current, 'Yes / I can arrange or confirm this', 'This is still user-reported, not institutionally verified.')}
-      ${choice(name, 'no', current, 'No / not sure yet', 'The next step will show this as an information gap.')}
+      ${choice(name, 'yes', current, t('common.yes'), t('ui.workflow.yesDetail'))}
+      ${choice(name, 'no', current, t('iepf.unknown'), t('ui.workflow.noDetail'))}
     </div>
   </fieldset>`;
 }
@@ -622,17 +844,45 @@ function renderCaseCard(record) {
   const workflowLabel = record.workflow === 'iepf' ? t('iepf.title') : t('udgam.title');
   const nextStatuses = getAllowedNextStatuses(record.status);
   return `<article class="case-card" aria-labelledby="case-${escapeHtml(record.id)}">
-    <div class="case-card-header"><div><p class="eyebrow">${escapeHtml(workflowLabel)} · ${escapeHtml(t('ui.cases.demo'))}</p><h3 id="case-${escapeHtml(record.id)}">${escapeHtml(localizedRoute(record.routeId, 'title'))}</h3><p>${escapeHtml(t('ui.cases.created'))}: ${escapeHtml(formatDate(record.createdAt))} · ${escapeHtml(record.claimantType === 'heir' ? t('ui.cases.familyHeir') : record.claimantType === 'holder' ? t('ui.cases.namedHolder') : t('ui.cases.searchPrep'))}</p></div><span class="status-chip ${record.status === CASE_STATUS.USER_REPORTED_RESOLVED ? 'warning' : ''}">${escapeHtml(statusLabel(record.status))}</span></div>
+    <div class="case-card-header"><div><p class="eyebrow">${escapeHtml(workflowLabel)} · ${escapeHtml(t('ui.cases.demo'))}</p><h3 id="case-${escapeHtml(record.id)}">${escapeHtml(caseTitle(record))}</h3><p>${escapeHtml(t('ui.cases.created'))}: ${escapeHtml(formatDate(record.createdAt))} · ${escapeHtml(record.claimantType === 'heir' ? t('ui.cases.familyHeir') : record.claimantType === 'holder' ? t('ui.cases.namedHolder') : t('ui.cases.searchPrep'))}</p></div><span class="status-chip ${record.status === CASE_STATUS.USER_REPORTED_RESOLVED ? 'warning' : ''}">${escapeHtml(statusLabel(record.status))}</span></div>
     <div class="case-meta"><div class="metric"><strong>${escapeHtml(t('ui.cases.stepsReviewed', { reviewed: progress.itemsReviewed, total: progress.total }))}</strong><span>${escapeHtml(t('ui.cases.itemsReviewed'))}</span></div><div class="metric"><strong>${progress.percentage}%</strong><span>${escapeHtml(t('ui.cases.itemsReviewed'))}</span></div><div class="metric"><strong>${escapeHtml(formatDate(record.updatedAt || record.createdAt))}</strong><span>${escapeHtml(t('ui.cases.localUpdated'))}</span></div></div>
     <div class="progress-track" aria-label="${escapeHtml(translate('accessibility.progress', { language: state.language, percentage: progress.percentage }))}"><div class="progress-bar" style="width:${progress.percentage}%"></div></div>
-    <div class="info-box" style="margin-top:1rem"><p><strong>${escapeHtml(t('ui.cases.nextAction'))}:</strong> ${escapeHtml(record.status === CASE_STATUS.PREPARING ? localizedRoute(record.routeId, 'nextAction') : progress.nextAction)}</p></div>
-    <div class="checklist" style="margin-top:1rem">${(record.checklist || []).map((item, index) => renderChecklistItem(item, index, record.id, { assessment: record.assessment })).join('')}</div>
-    <div class="timeline" aria-label="${escapeHtml(t('ui.cases.timeline'))}">${(record.timeline || []).map((item) => `<div class="timeline-item"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(formatDateTime(item.at))} · ${escapeHtml(item.source || t('ui.cases.demo'))}</span></div>`).join('')}</div>
+    <div class="info-box" style="margin-top:1rem"><p><strong>${escapeHtml(t('ui.cases.nextAction'))}:</strong> ${escapeHtml(caseNextAction(record, progress))}</p></div>
+    <div class="checklist" style="margin-top:1rem">${(record.checklist || []).map((item, index) => renderChecklistItem(item, index, record.id, { assessment: record.assessment, opportunity: caseOpportunity(record) })).join('')}</div>
+    ${renderCaseFollowThrough(record)}
+    <div class="timeline" aria-label="${escapeHtml(t('ui.cases.timeline'))}">${(record.timeline || []).map((item, index) => `<div class="timeline-item"><strong>${escapeHtml(item.type ? eventLabel(item.type) : index === 0 ? t('ui.cases.created') : statusLabel(item.status))}</strong><span>${escapeHtml(formatDateTime(item.at))} · ${escapeHtml(t('workflow.userReportedInput'))}</span></div>`).join('')}</div>
     <div class="button-row" style="margin-top:1rem">
       ${nextStatuses.map((status) => `<button class="button ${status === CASE_STATUS.SUBMISSION_REPORTED || status === CASE_STATUS.PREPARING ? 'secondary' : ''} small" type="button" data-action="update-case-status" data-case-id="${escapeHtml(record.id)}" data-to-status="${escapeHtml(status)}">${escapeHtml(status === CASE_STATUS.ACTION_REPORTED ? t('ui.cases.reportAction') : status === CASE_STATUS.SUBMISSION_REPORTED ? t('ui.cases.reportSubmission') : status === CASE_STATUS.PREPARING ? t('ui.cases.returnToPreparation') : t('ui.cases.markResolved'))}</button>`).join('')}
       ${record.status === CASE_STATUS.USER_REPORTED_RESOLVED ? `<span class="microcopy">${escapeHtml(t('ui.cases.resolvedNote'))}</span>` : ''}
     </div>
   </article>`;
+}
+
+function eventLabel(type) {
+  const labels = {
+    'evidence-collected': ['Evidence collected — reported by you', 'प्रमाण व्यवस्थित — आपके द्वारा बताया गया'],
+    'portal-opened': ['Official link clicked — page load not verified', 'आधिकारिक लिंक क्लिक — पृष्ठ खुलना सत्यापित नहीं'],
+    'submission-reported': ['Submission reported by you', 'जमा करना आपके द्वारा बताया गया'],
+    'response-reported': ['Institution response reported by you', 'संस्था का उत्तर आपके द्वारा बताया गया'],
+    'recovery-reported': ['Recovery reported by you — not independently verified', 'वापसी आपके द्वारा बताई गई — स्वतंत्र सत्यापन नहीं']
+  };
+  return labels[type] ? bilingual(...labels[type]) : type;
+}
+
+function renderCaseFollowThrough(record) {
+  const opportunity = caseOpportunity(record);
+  const url = opportunity?.officialUrl || record.officialUrl;
+  return `<div class="panel" style="margin-top:1rem;box-shadow:none">
+    <h3>${escapeHtml(bilingual('Your follow-through record', 'आपके अगले कदम का रिकॉर्ड'))}</h3>
+    <p class="microcopy">${escapeHtml(bilingual('These are separate reports, not official status or proof of recovery. Opening a link never reports a submission.', 'ये अलग रिपोर्ट हैं, आधिकारिक स्थिति या वापसी का प्रमाण नहीं। लिंक खोलना जमा करने की रिपोर्ट नहीं है।'))}</p>
+    <div class="button-row">${url ? `<a class="button secondary small" href="${escapeHtml(url)}" target="_blank" rel="noreferrer" data-action="record-portal" data-case-id="${escapeHtml(record.id)}">${escapeHtml(t('ui.opportunity.openOfficial'))}</a>` : ''}${['evidence-collected', 'submission-reported', 'response-reported', 'recovery-reported'].map((type) => `<button type="button" class="button secondary small" data-action="case-event" data-event-type="${type}" data-case-id="${escapeHtml(record.id)}">${escapeHtml(eventLabel(type))}</button>`).join('')}</div>
+    <ul>${(record.events || []).map((event) => `<li>${escapeHtml(eventLabel(event.type))} · ${escapeHtml(formatDateTime(event.at))}</li>`).join('')}</ul>
+    <form data-form="case-followup" data-case-id="${escapeHtml(record.id)}" class="form-grid">
+      <div class="field"><label for="followup-${escapeHtml(record.id)}">${escapeHtml(bilingual('Your chosen next-review date (in-app only)', 'आपकी चुनी अगली समीक्षा तिथि (केवल ऐप में)'))}</label><input type="date" id="followup-${escapeHtml(record.id)}" name="followUpDate" value="${escapeHtml(record.followUpDate || '')}"><small>${escapeHtml(bilingual('Not a statutory deadline. No email, push, or automatic monitoring.', 'यह कानूनी अंतिम तिथि नहीं। ईमेल, पुश या स्वतः निगरानी नहीं।'))}</small></div>
+      <div class="field"><label for="family-${escapeHtml(record.id)}">${escapeHtml(bilingual('Family organizer label — no names', 'परिवार व्यवस्था लेबल — नाम नहीं'))}</label><select name="familyRole" id="family-${escapeHtml(record.id)}">${[['self', bilingual('Self', 'स्वयं')], ['parent', bilingual('Parent', 'माता/पिता')], ['grandparent', bilingual('Grandparent', 'दादा/दादी/नाना/नानी')], ['family', bilingual('Family member', 'परिवार सदस्य')]].map(([value, label]) => `<option value="${value}" ${(record.familyRole || 'self') === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select></div>
+      <button class="button small" type="submit">${escapeHtml(t('common.save'))}</button>
+    </form>
+  </div>`;
 }
 
 function renderSourceDirectory() {
@@ -667,6 +917,8 @@ function renderSettings() {
       <article class="panel"><h2>${escapeHtml(t('ui.settings.notStoredTitle'))}</h2><p class="muted">${escapeHtml(t('ui.settings.notStoredBody'))}</p></article>
       <article class="panel"><h2>${escapeHtml(t('ui.settings.exportTitle'))}</h2><p class="muted">${escapeHtml(t('ui.settings.exportBody'))}</p><button class="button secondary" type="button" data-action="export-demo">${escapeHtml(t('ui.settings.exportAction'))}</button></article>
       <article class="panel"><h2>${escapeHtml(t('ui.settings.resetTitle'))}</h2><p class="muted">${escapeHtml(t('ui.settings.resetBody'))}</p><button class="button" type="button" data-action="reset-demo">${escapeHtml(t('ui.settings.resetAction'))}</button></article>
+      ${renderStudySettings()}
+      <article class="panel"><h2>${escapeHtml(bilingual('Free now · Premium hypothesis', 'अभी नि:शुल्क · प्रीमियम परिकल्पना'))}</h2><p>${escapeHtml(bilingual('Catalogue, official links, preparation, family role labels, and in-app review dates are free in this prototype. Premium family workspace and richer document organization are not sold or unlocked here. No purchase, entitlement, or RevenueCat connection is configured.', 'इस प्रोटोटाइप में कैटलॉग, आधिकारिक लिंक, तैयारी, परिवार लेबल और ऐप समीक्षा तिथियाँ नि:शुल्क हैं। प्रीमियम परिवार कार्यक्षेत्र और दस्तावेज़ व्यवस्था यहाँ बेची या अनलॉक नहीं होती। खरीद, अधिकार या RevenueCat जुड़ा नहीं है।'))}</p><p class="microcopy">${escapeHtml(bilingual('No percentage-of-recovery fee. Official destinations are never paywalled.', 'वापसी राशि का प्रतिशत शुल्क नहीं। आधिकारिक गंतव्य कभी भुगतान के पीछे नहीं।'))}</p></article>
     </div>
     <div class="panel" style="margin-top:1rem">${renderSourceDirectory()}</div>
   </section>`;
@@ -679,7 +931,11 @@ function readForm(form) {
 
 function beginWorkflow(workflow) {
   state.view = 'discover';
+  state.wizardSuspended = false;
   state.assistantAnswer = null;
+  if (state.wizard?.workflow === workflow) {
+    persist(); render(); return;
+  }
   state.wizard = workflow === 'iepf'
     ? {
         workflow,
@@ -734,7 +990,8 @@ function wizardNext() {
   const wizard = state.wizard;
   if (!wizard) return;
   if (wizard.workflow === 'iepf' && wizard.step === 3) {
-    wizard.checklist = buildIepfChecklist(wizard.assessment || assessIepf(wizard.inputs));
+    const previous = wizard.checklist || [];
+    wizard.checklist = buildIepfChecklist(wizard.assessment || assessIepf(wizard.inputs)).map((item) => ({ ...item, reviewed: previous.find((old) => old.id === item.id)?.reviewed === true }));
     wizard.step = 4;
   }
   persist();
@@ -777,7 +1034,7 @@ function createCaseFromWizard() {
   const id = `demo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const record = {
     id,
-    demo: true,
+    demo: activeMode === 'demo',
     workflow: wizard.workflow,
     routeId: assessment.routeId,
     routeTitle: localizedRoute(assessment.routeId, 'title'),
@@ -800,10 +1057,81 @@ function createCaseFromWizard() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function saveOpportunityCase(opportunityId) {
+  const opportunity = getOpportunityById(opportunityId);
+  if (!opportunity || opportunity.publicationStatus !== 'published') return;
+  const dedupKey = `opportunity|${opportunity.id}`;
+  const existing = state.cases.find((record) => record.dedupKey === dedupKey);
+  if (existing) {
+    state.view = 'cases';
+    showToast(t('errors.duplicateCase'));
+    persist();
+    render();
+    return;
+  }
+  const now = new Date().toISOString();
+  const relevance = scoreOpportunityRelevance(opportunity, opportunityEvidenceInput());
+  const checklist = opportunity.eligibilityEvidencePrompts.map((prompt) => ({
+    id: `opportunity-${prompt.id}`,
+    title: prompt.label,
+    detail: `${prompt.question} ${prompt.evidenceHint}`,
+    sourceIds: [...opportunity.sourceIds],
+    label: t('ui.common.userReportedNotVerified'),
+    reviewed: false
+  }));
+  state.cases.unshift({
+    id: `demo-opportunity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    demo: activeMode === 'demo',
+    workflow: opportunity.category === 'unclaimed-bank-deposits' ? 'udgam' : 'iepf',
+    opportunityId: opportunity.id,
+    routeId: opportunity.id,
+    routeTitle: opportunity.title,
+    claimantType: 'search-preparation',
+    companyName: '',
+    status: CASE_STATUS.PREPARING,
+    nextAction: t('ui.opportunity.nextActionBody'),
+    assessment: { ...relevance, sourceIds: [...opportunity.sourceIds], isOfficiallyConfirmed: false },
+    checklist,
+    sourceIds: [...opportunity.sourceIds],
+    officialUrl: opportunity.officialUrl,
+    timeline: [{ label: t('ui.cases.created'), status: CASE_STATUS.PREPARING, at: now, source: t('ui.cases.demo') }],
+    createdAt: now,
+    updatedAt: now,
+    dedupKey
+  });
+  state.view = 'cases';
+  persist();
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function searchOpportunityForm(form) {
+  const values = readForm(form);
+  const previous = state.discovery || defaultState().discovery;
+  const next = {
+    ...previous,
+    query: String(values.query || '').trim().slice(0, 160),
+    category: String(values.category || ''),
+    institution: String(values.institution || '').trim().slice(0, 120),
+    product: String(values.product || '').trim().slice(0, 120),
+    clues: String(values.clues || '').trim().slice(0, 240),
+    verification: String(values.verification || ''),
+    evidenceKind: String(values.evidenceKind || ''),
+    evidenceConfirmed: values.evidenceConfirmed === 'on',
+    conflictingEvidence: values.conflictingEvidence === 'on',
+    selectedId: ''
+  };
+  next.results = searchOpportunities({ query: next.query, category: next.category }).map((item) => item.id);
+  state.discovery = next;
+  persist();
+  render();
+}
+
 function toggleWizardChecklist(index, checked) {
   const item = state.wizard?.checklist?.[index];
   if (!item) return;
   item.reviewed = checked;
+  delete item.checked;
   persist();
   render();
 }
@@ -812,6 +1140,7 @@ function toggleCaseChecklist(caseId, index, checked) {
   const record = state.cases.find((item) => item.id === caseId);
   if (!record?.checklist?.[index]) return;
   record.checklist[index].reviewed = checked;
+  delete record.checklist[index].checked;
   record.updatedAt = new Date().toISOString();
   persist();
   render();
@@ -837,8 +1166,8 @@ function updateCaseStatus(caseId, toStatus) {
 function exportDemo() {
   const exportPayload = {
     exportedAt: new Date().toISOString(),
-    demoMode: true,
-    note: 'Synthetic Reclaim Labs browser state. Not an official record.',
+    demoMode: activeMode === 'demo',
+    note: 'Local Reclaim Labs preparation state. Not an official record.',
     cases: state.cases
   };
   const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
@@ -864,11 +1193,42 @@ document.addEventListener('click', (event) => {
 
   if (action === 'navigate') {
     state.view = target.dataset.view || 'home';
+    if (state.view === 'discover') state.wizardSuspended = true;
     persist();
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (action === 'switch-mode') {
+    switchMode();
+  } else if (action === 'start-study') {
+    state.study = { startedAt: Date.now() };
+    state.view = 'discover'; state.wizardSuspended = true; state.discovery.selectedId = '';
+    persist(); render();
+  } else if (action === 'case-event' || action === 'record-portal') {
+    const record = state.cases.find((item) => item.id === target.dataset.caseId);
+    if (!record) return;
+    const type = action === 'record-portal' ? 'portal-opened' : target.dataset.eventType;
+    if (type === 'recovery-reported' && !window.confirm(bilingual('Record your own report of recovery? This does not verify an amount or an institutional outcome.', 'वापसी की आपकी रिपोर्ट दर्ज करें? इससे राशि या संस्था का परिणाम सत्यापित नहीं होता।'))) return;
+    Object.assign(record, appendCaseEvent(record, type, { provenance: action === 'record-portal' ? 'browser-click' : 'user-reported' }));
+    persist();
+    // Keep native link navigation intact; do not replace the anchor before its default action.
+    if (action !== 'record-portal') render();
   } else if (action === 'start-workflow') {
     beginWorkflow(target.dataset.workflow);
+  } else if (action === 'view-opportunity') {
+    state.discovery.selectedId = target.dataset.opportunityId || '';
+    persist();
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (action === 'back-opportunities') {
+    state.discovery.selectedId = '';
+    persist();
+    render();
+  } else if (action === 'clear-opportunity-search') {
+    state.discovery = defaultState().discovery;
+    persist();
+    render();
+  } else if (action === 'save-opportunity-case') {
+    saveOpportunityCase(target.dataset.opportunityId);
   } else if (action === 'reset-demo') {
     resetDemo();
   } else if (action === 'wizard-back') {
@@ -906,11 +1266,48 @@ document.addEventListener('change', (event) => {
   }
 });
 
+// Save unfinished answers without replacing the focused control or requiring
+// submission; navigation and language switches must not discard typed clues.
+document.addEventListener('input', (event) => {
+  const target = event.target;
+  const form = target.closest?.('form');
+  if (form?.dataset.form === 'wizard' && state.wizard && target.name) {
+    state.wizard.inputs[target.name] = String(target.value || '').slice(0, 120);
+    persist();
+  } else if (form?.dataset.form === 'opportunity-search' && target.name) {
+    state.discovery[target.name] = target.type === 'checkbox' ? target.checked : String(target.value || '').slice(0, 240);
+    persist();
+  }
+});
+
 document.addEventListener('submit', (event) => {
   event.preventDefault();
   const form = event.target;
   if (form.dataset.form === 'wizard') {
     handleWizardSubmit(form);
+  } else if (form.dataset.form === 'study-result' && state.study) {
+    const values = readForm(form);
+    state.studyResults = [...(state.studyResults || []), {
+      opportunityId: form.dataset.opportunityId,
+      elapsedMs: Math.max(0, Date.now() - state.study.startedAt),
+      relevant: values.relevant === 'on', understood: values.understood === 'on',
+      at: new Date().toISOString(), provenance: 'user-reported', demo: activeMode === 'demo'
+    }];
+    state.study = null; state.view = 'settings'; persist(); render();
+  } else if (form.dataset.form === 'case-followup') {
+    const record = state.cases.find((item) => item.id === form.dataset.caseId);
+    if (!record) return;
+    const values = readForm(form);
+    try {
+      Object.assign(record, setFollowUp(record, String(values.followUpDate || '')));
+      record.familyRole = ['self', 'parent', 'grandparent', 'family'].includes(values.familyRole) ? values.familyRole : 'self';
+      record.updatedAt = new Date().toISOString();
+      persist(); render();
+    } catch {
+      showToast(bilingual('Choose a valid calendar date.', 'सही कैलेंडर तिथि चुनें।')); render();
+    }
+  } else if (form.dataset.form === 'opportunity-search') {
+    searchOpportunityForm(form);
   } else if (form.dataset.form === 'assistant') {
     const values = readForm(form);
     if (!String(values.question || '').trim()) {
@@ -923,6 +1320,15 @@ document.addEventListener('submit', (event) => {
       ? response
       : answerWithFallback('Tell me about IEPF or UDGAM.', { language: state.language });
     persist();
+    render();
+  }
+});
+
+window.addEventListener?.('hashchange', () => {
+  const destination = location.hash.slice(1);
+  if (['home', 'discover', 'cases', 'assistant', 'settings'].includes(destination)) {
+    state.view = destination;
+    if (destination === 'discover') state.wizardSuspended = true;
     render();
   }
 });

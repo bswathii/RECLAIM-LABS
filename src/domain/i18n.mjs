@@ -708,7 +708,14 @@ const EN_UI = {
     resume: 'Resume this journey',
     noJourney: 'No journey is open',
     noJourneyBody: 'Choose IEPF or UDGAM to begin a guided preparation flow.',
-    backToDiscover: 'Back to Discover'
+    backToDiscover: 'Back to Discover',
+    catalogueNotice: 'Catalogue routes are source-backed opportunities, not individual asset results. Your institution and product clues are used only to explain relevance.',
+    guidedEyebrow: 'Guided official journeys',
+    guidedTitle: 'Need help preparing the official search?',
+    guidedDescription: 'Use the existing IEPF and UDGAM workflows when you need a step-by-step handoff.'
+  },
+  opportunity: {
+    eyebrow: 'Verified opportunity catalogue', title: 'Find a relevant official route', description: 'Search curated, source-backed routes by institution, product, or clue. Reclaim Labs does not search individual financial records.', catalogueBadge: 'Source-backed', searchLabel: 'Search catalogue', searchPlaceholder: 'e.g. UDGAM, shares, dividend', categoryLabel: 'Category', allCategories: 'All categories', sharesCategory: 'Shares and dividends', bankCategory: 'Bank deposits', assetsCategory: 'Unclaimed-assets gateway', institutionLabel: 'Institution or company', institutionPlaceholder: 'e.g. RBI, NSDL, your bank', productLabel: 'Financial product or type', productPlaceholder: 'e.g. unclaimed deposit', cluesLabel: 'What do you remember?', cluesPlaceholder: 'Use non-sensitive clues only', cluesHint: 'Do not enter account numbers, passwords, OTPs, or document contents.', searchAction: 'Search opportunities', clearAction: 'Clear', noResults: 'No catalogue routes found', noResultsBody: 'Try a broader institution, product, or category. No individual asset search was performed.', whyRelevant: 'Why it appears', catalogueRelevance: 'Relevant because it is a verified route in the catalogue.', viewDetails: 'View opportunity', backToResults: 'Back to results', detailEyebrow: 'Opportunity details', officialDestination: 'Official destination', verifiedGuidance: 'Verified general guidance', verifiedRoute: 'Verified route', guidedJourney: 'Guided journey', relevant: 'Relevant opportunity', potentialMatch: 'Potential personal match — user evidence only', insufficient: 'Insufficient information', noMatchChecked: 'No match in sources checked', whatItIs: 'What this is', whyRecommended: 'Why it was recommended', catalogueReason: 'This is a general opportunity route; no personal match was established.', personalMatchBoundary: 'A potential personal match here means your confirmed clues align with the route. It is not proof of ownership or an institutional result.', eligibilityTitle: 'Who may qualify and what evidence matters', provenanceTitle: 'Source and freshness', checkedOn: 'Verified on', dataDate: 'Source record date', accessMode: 'Access mode', nextActionTitle: 'Next action', nextActionBody: 'Open the official destination yourself, then return here to save a preparation case. The app does not submit a claim or know the result.', openOfficial: 'Open official destination', saveCase: 'Save preparation case'
   },
   cases: {
     eyebrow: 'Your local record',
@@ -903,7 +910,14 @@ const HI_UI = {
     resume: 'यह यात्रा जारी रखें',
     noJourney: 'कोई यात्रा खुली नहीं है',
     noJourneyBody: 'निर्देशित तैयारी शुरू करने के लिए IEPF या UDGAM चुनें।',
-    backToDiscover: 'डिस्कवर पर लौटें'
+    backToDiscover: 'डिस्कवर पर लौटें',
+    catalogueNotice: 'कैटलॉग मार्ग स्रोत-आधारित अवसर हैं, व्यक्तिगत संपत्ति के परिणाम नहीं। आपकी संस्था और उत्पाद संबंधी जानकारी केवल प्रासंगिकता समझाने के लिए उपयोग होती है।',
+    guidedEyebrow: 'निर्देशित आधिकारिक यात्राएँ',
+    guidedTitle: 'आधिकारिक खोज की तैयारी में मदद चाहिए?',
+    guidedDescription: 'जब आपको चरण-दर-चरण हस्तांतरण चाहिए तब IEPF और UDGAM की मौजूदा यात्राओं का उपयोग करें।'
+  },
+  opportunity: {
+    eyebrow: 'सत्यापित अवसर कैटलॉग', title: 'प्रासंगिक आधिकारिक मार्ग खोजें', description: 'संस्था, उत्पाद या संकेत से स्रोत-आधारित मार्ग खोजें। Reclaim Labs व्यक्तिगत वित्तीय रिकॉर्ड नहीं खोजता।', catalogueBadge: 'स्रोत-आधारित', searchLabel: 'कैटलॉग खोजें', searchPlaceholder: 'जैसे UDGAM, शेयर, लाभांश', categoryLabel: 'श्रेणी', allCategories: 'सभी श्रेणियाँ', sharesCategory: 'शेयर और लाभांश', bankCategory: 'बैंक जमा', assetsCategory: 'लावारिस संपत्ति गेटवे', institutionLabel: 'संस्था या कंपनी', institutionPlaceholder: 'जैसे RBI, NSDL, आपका बैंक', productLabel: 'वित्तीय उत्पाद या प्रकार', productPlaceholder: 'जैसे लावारिस जमा', cluesLabel: 'आपको क्या याद है?', cluesPlaceholder: 'केवल गैर-संवेदनशील संकेत लिखें', cluesHint: 'खाता संख्या, पासवर्ड, OTP या दस्तावेज़ की सामग्री दर्ज न करें।', searchAction: 'अवसर खोजें', clearAction: 'साफ़ करें', noResults: 'कोई कैटलॉग मार्ग नहीं मिला', noResultsBody: 'व्यापक संस्था, उत्पाद या श्रेणी आज़माएँ। व्यक्तिगत संपत्ति की खोज नहीं की गई।', whyRelevant: 'यह क्यों दिख रहा है', catalogueRelevance: 'यह कैटलॉग में सत्यापित मार्ग होने के कारण प्रासंगिक है।', viewDetails: 'अवसर देखें', backToResults: 'परिणामों पर लौटें', detailEyebrow: 'अवसर विवरण', officialDestination: 'आधिकारिक गंतव्य', verifiedGuidance: 'सत्यापित सामान्य मार्गदर्शन', verifiedRoute: 'सत्यापित मार्ग', guidedJourney: 'निर्देशित यात्रा', relevant: 'प्रासंगिक अवसर', potentialMatch: 'संभावित व्यक्तिगत मिलान — केवल उपयोगकर्ता संकेत', insufficient: 'अपर्याप्त जानकारी', noMatchChecked: 'जाँचे गए स्रोतों में मिलान नहीं', whatItIs: 'यह क्या है', whyRecommended: 'यह क्यों सुझाया गया', catalogueReason: 'यह एक सामान्य अवसर मार्ग है; कोई व्यक्तिगत मिलान स्थापित नहीं हुआ।', personalMatchBoundary: 'यहाँ संभावित व्यक्तिगत मिलान का अर्थ है कि आपके पुष्ट संकेत इस मार्ग से मेल खाते हैं। यह स्वामित्व या संस्था के परिणाम का प्रमाण नहीं है।', eligibilityTitle: 'कौन पात्र हो सकता है और कौन-सा प्रमाण मायने रखता है', provenanceTitle: 'स्रोत और ताज़गी', checkedOn: 'सत्यापन तिथि', dataDate: 'स्रोत रिकॉर्ड तिथि', accessMode: 'पहुँच का तरीका', nextActionTitle: 'अगला कदम', nextActionBody: 'आधिकारिक गंतव्य स्वयं खोलें, फिर तैयारी केस बचाने के लिए लौटें। ऐप दावा जमा नहीं करता और परिणाम नहीं जानता।', openOfficial: 'आधिकारिक गंतव्य खोलें', saveCase: 'तैयारी केस सहेजें'
   },
   cases: {
     eyebrow: 'आपका स्थानीय रिकॉर्ड',
