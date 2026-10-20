@@ -4,7 +4,7 @@ export const SOURCES = Object.freeze([
     institution: 'Reserve Bank of India',
     title: 'UDGAM Portal FAQ',
     url: 'https://www.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=3579',
-    accessedOn: '2026-10-19',
+    accessedOn: '2026-10-20',
     status: 'verified',
     confidenceLabel: 'Verified source',
     supports: [
@@ -86,6 +86,39 @@ export const SOURCES = Object.freeze([
     confidenceLabel: 'Official destination',
     supports: ['The government gateway is an existing official index for unclaimed-asset destinations; Reclaim Labs must add guidance and follow-through rather than claim to be the registry.'],
     openQuestions: ['The research fetcher returned only the page title. Recheck current categories and redirect behavior before relying on detailed gateway claims.']
+  },
+  {
+    id: 'SRC-INDIA-SERVICES-IEPF',
+    institution: 'National Government Services Portal',
+    title: 'IEPF forms service listing',
+    url: 'https://services.india.gov.in/service/detail/iepf-forms-by-investor-education-and-protection-fund-authority',
+    accessedOn: '2026-10-20',
+    status: 'access-blocked',
+    confidenceLabel: 'Not verified — transport error',
+    supports: [],
+    openQuestions: ['Transport error during research. No form instructions, inputs, deadlines, or API inferred.']
+  },
+  {
+    id: 'SRC-IRDAI-UNCLAIMED-DIRECTORY',
+    institution: 'Insurance Regulatory and Development Authority of India',
+    title: 'Bima Bharosa unclaimed amounts — insurer directory',
+    url: 'https://bimabharosa.irdai.gov.in/Home/UnclaimedAmount',
+    accessedOn: '2026-10-20',
+    status: 'verified',
+    confidenceLabel: 'Verified directory only — no claim workflow integrated',
+    supports: ['The page lists links to life, general, and health insurers for unclaimed amounts.', 'Bima Bharosa warns against payments or QR codes for disbursement.'],
+    openQuestions: ['Individual insurer inputs and claim requirements were not checked; no insurance workflow or individual search is integrated.']
+  },
+  {
+    id: 'SRC-SEBI-MITRA-CIRCULAR',
+    institution: 'Securities and Exchange Board of India',
+    title: 'MITRA circular — inactive and unclaimed mutual fund folios',
+    url: 'https://www.sebi.gov.in/legal/circulars/feb-2025/service-platform-for-investors-to-trace-inactive-and-unclaimed-mutual-fund-folios-mitra-mutual-fund-investment-tracing-and-retrieval-assistant-_91847.html',
+    accessedOn: '2026-10-20',
+    status: 'official-destination',
+    confidenceLabel: 'Circular metadata only — procedure not verified',
+    supports: ['The official page identifies circular SEBI/HO/IMD/IMD-SEC-3/P/CIR/2025/15 dated February 12, 2025 concerning MITRA.'],
+    openQuestions: ['Only title, date and circular identifier were extracted. No current operational search endpoint, individual input or claim procedure verified.']
   }
 ]);
 

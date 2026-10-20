@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test",
-    "qwen:check": "node scripts/check-qwen-config.mjs"
+    "qwen:check": "node scripts/check-qwen-config.mjs",
+    "catalogue:check": "node scripts/check-catalogue.mjs"
   },
   "engines": {
     "node": ">=22.14.0"
