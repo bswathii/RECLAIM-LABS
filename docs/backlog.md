@@ -3,7 +3,7 @@
 Items remain deferred until the core two-category journey is stable and their evidence/operational requirements are met.
 
 - Re-verify and expand IEPF/MCA source records; add institution-specific RTA instructions only when sourced.
-- Server-side Qwen3-8B adapter with rate limiting, retrieval, output validation, source-support checks, timeout handling, and Hindi evaluation.
+- Rate limiting, abuse controls and production observability for the implemented Qwen3-8B adapter; add a real-provider compatibility check and Hindi evaluation only with approved server credentials. The adapter itself has mocked coverage and always falls back safely.
 - External notifications/annual re-checks and authorized monitoring. User-chosen **in-app-only review dates already exist**; they are not a scheduler or inferred deadline.
 - Shared family asset register with ownership/access controls and retention/deletion policy. Non-sensitive local family-role labels already exist but are not shared accounts.
 - English/Hindi procedural translations reviewed against official text; add one regional language only after a validated translation review.

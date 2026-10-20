@@ -1,0 +1,12 @@
+services:
+  reclaim-labs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: reclaim-labs:local
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    restart: "no"

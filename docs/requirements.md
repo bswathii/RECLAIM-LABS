@@ -6,7 +6,7 @@ Reclaim Labs is a guided recovery and financial-organization layer around offici
 
 ## Launch categories
 
-1. **Unclaimed shares and dividends — IEPF**: the flagship family/heir workflow. The product distinguishes a possible company/RTA suspense-account route from a possible IEPF/MCA route, but the user must confirm the actual status with the relevant institution.
+1. **Unclaimed shares and dividends — IEPF**: the flagship family/heir workflow. The product distinguishes a possible company/RTA suspense-account route from a possible IEPF/MCA route, but the user must confirm the actual status with the relevant institution. The UI exposes both the deceased-family-member journey and the explicit uncertain-custody journey.
 2. **Unclaimed bank deposits — RBI UDGAM**: a search-preparation workflow. UDGAM search results do not equal an approved or paid claim.
 
 No EPF, insurance, post-office, mutual-fund, or other recovery workflow is in launch scope. IRDAI/MITRA sources are research-only; their presence in the source directory is not a working claim journey.
@@ -30,4 +30,4 @@ The MVP must not request Aadhaar, PAN, bank account numbers, passwords, OTPs, go
 
 ## Acceptance boundary
 
-The acceptance task is to discover a relevant route, explain the next official action and remaining uncertainty, save/revisit a case, and keep reports distinct from official outcomes. The IEPF family/heir and UDGAM preparation slices must both work. Automated controller/domain tests support these behaviors; browser click-through and independent participant comprehension remain separate verification gaps.
+The acceptance task is to discover a relevant route, explain the next official action and remaining uncertainty, save/revisit a case, and keep reports distinct from official outcomes. The deceased-family-member IEPF, UDGAM preparation, and uncertain-custody slices must all be discoverable and work. Automated controller/domain tests support these behaviors; browser click-through and independent participant comprehension remain separate verification gaps.

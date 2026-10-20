@@ -6,6 +6,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 required_files="
   README.md
   Dockerfile
+  compose.yaml
   .dockerignore
   package.json
   package-lock.json
@@ -18,6 +19,7 @@ required_files="
   src/domain/sources.mjs
   src/domain/assistant.mjs
   server/qwen-config.mjs
+  server/qwen-adapter.mjs
   scripts/check-qwen-config.mjs
   src/domain/i18n.mjs
   src/domain/opportunities.mjs
@@ -53,6 +55,7 @@ perl -0e '
     ["$root/docs/source-register.md", qr/access-blocked/],
     ["$root/.env.example", qr/QWEN_MODEL=Qwen\/Qwen3-8B/],
     ["$root/server/qwen-config.mjs", qr/QWEN_MODEL/],
+    ["$root/server/qwen-adapter.mjs", qr/QWEN_ENDPOINT/],
     ["$root/scripts/check-qwen-config.mjs", qr/Inference: not attempted/],
     ["$root/server.mjs", qr/try\s*\{\s*pathname\s*=\s*decodeURIComponent/],
     ["$root/tests/server.test.mjs", qr/malformed URL escapes/],
@@ -66,7 +69,8 @@ perl -0e '
     ["$root/public/app.mjs", qr/claimantType:/],
     ["$root/public/app.mjs", qr/window\.confirm\(prompt\)/],
     ["$root/public/app.mjs", qr/DEMO DATA — NOT A REAL FINANCIAL MATCH/],
-    ["$root/src/domain/opportunities.mjs", qr/personal-evidence-required/]
+    ["$root/src/domain/opportunities.mjs", qr/personal-evidence-required/],
+    ["$root/server.mjs", qr/\/api\/assistant/]
   );
   for my $check (@checks) {
     my ($file, $pattern) = @$check;

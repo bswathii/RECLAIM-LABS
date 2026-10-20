@@ -119,6 +119,7 @@ function defaultState() {
     study: null,
     studyResults: [],
     assistantAnswer: null,
+    assistantLoading: false,
     toast: '',
     storageWarning: false,
     mode: activeMode
@@ -467,15 +468,21 @@ function renderCategoryCards() {
   return `<section class="category-grid" aria-label="${escapeHtml(t('ui.home.categoriesTitle'))}">
     <article class="card category-card">
       <div class="card-top"><span class="category-mark" aria-hidden="true">₹↗</span><span class="pill">IEPF</span></div>
-      <div><h3>${escapeHtml(t('ui.home.iepfCardTitle'))}</h3><p>${escapeHtml(t('ui.home.iepfCardBody'))}</p></div>
-        <div class="pill-row"><span class="pill muted">${escapeHtml(t('ui.home.possibleOnly'))}</span><span class="pill muted">${escapeHtml(t('ui.home.noAmount'))}</span></div>
+      <div><h3>${escapeHtml(bilingual('A · Deceased family member shares or dividends', 'A · दिवंगत परिवार सदस्य के शेयर या लाभांश'))}</h3><p>${escapeHtml(t('ui.home.iepfCardBody'))}</p></div>
+      <div class="pill-row"><span class="pill muted">${escapeHtml(t('ui.home.possibleOnly'))}</span><span class="pill muted">${escapeHtml(t('ui.home.noAmount'))}</span></div>
       <div class="button-row"><button class="button" type="button" data-action="start-workflow" data-workflow="iepf">${escapeHtml(t('iepf.start'))}</button></div>
     </article>
     <article class="card category-card udgam">
       <div class="card-top"><span class="category-mark" aria-hidden="true">⌕</span><span class="pill">RBI · UDGAM</span></div>
-      <div><h3>${escapeHtml(t('ui.home.udgamCardTitle'))}</h3><p>${escapeHtml(t('ui.home.udgamCardBody'))}</p></div>
+      <div><h3>${escapeHtml(bilingual('B · Individual potentially unclaimed bank deposit', 'B · व्यक्ति की संभावित लावारिस बैंक जमा'))}</h3><p>${escapeHtml(t('ui.home.udgamCardBody'))}</p></div>
       <div class="pill-row"><span class="pill muted">${escapeHtml(t('ui.home.searchPreparation'))}</span><span class="pill muted">${escapeHtml(t('ui.home.claimStaysWithBank'))}</span></div>
       <div class="button-row"><button class="button" type="button" data-action="start-workflow" data-workflow="udgam">${escapeHtml(t('udgam.start'))}</button></div>
+    </article>
+    <article class="card category-card uncertain-route-card">
+      <div class="card-top"><span class="category-mark" aria-hidden="true">?</span><span class="pill">IEPF · CUSTODY UNKNOWN</span></div>
+      <div><h3>${escapeHtml(bilingual('C · Uncertain recovery route', 'C · अनिश्चित वसूली मार्ग'))}</h3><p>${escapeHtml(bilingual('For an old share document when the family cannot tell whether the company/RTA or IEPF holds the record. Start with custody verification, not a guessed IEPF conclusion.', 'पुराने शेयर दस्तावेज़ के लिए जब परिवार यह नहीं बता सकता कि रिकॉर्ड कंपनी/RTA या IEPF के पास है। अनुमानित IEPF निष्कर्ष के बजाय कस्टडी सत्यापन से शुरू करें।'))}</p></div>
+      <div class="pill-row"><span class="pill muted">${escapeHtml(bilingual('Needs more information', 'अधिक जानकारी चाहिए'))}</span><span class="pill muted">${escapeHtml(t('ui.home.noAmount'))}</span></div>
+      <div class="button-row"><button class="button" type="button" data-action="start-workflow" data-workflow="uncertain">${escapeHtml(bilingual('Start uncertain-route journey', 'अनिश्चित मार्ग यात्रा शुरू करें'))}</button></div>
     </article>
   </section>`;
 }
@@ -705,8 +712,9 @@ function renderIepfWizard() {
 
   return `<section aria-labelledby="workflow-title">
     <div class="wizard-header">
-      <p class="eyebrow">Guided recovery preparation</p>
+      <p class="eyebrow">${escapeHtml(wizard.journeyVariant === 'uncertain' ? bilingual('Use case C · Uncertain recovery route', 'उपयोग मामला C · अनिश्चित वसूली मार्ग') : bilingual('Use case A · Deceased family member journey', 'उपयोग मामला A · दिवंगत परिवार सदस्य यात्रा'))}</p>
       <h1 id="workflow-title">${escapeHtml(t('iepf.title'))}</h1>
+      ${wizard.journeyVariant === 'uncertain' ? `<div class="info-box warning"><p><strong>${escapeHtml(bilingual('Synthetic demonstration', 'सिंथेटिक प्रदर्शन'))}:</strong> ${escapeHtml(bilingual('This fictional old-document scenario starts with custody unknown. It will not force an IEPF conclusion.', 'यह काल्पनिक पुराने दस्तावेज़ का मामला अज्ञात कस्टडी से शुरू होता है। यह IEPF निष्कर्ष थोपेगा नहीं।'))}</p></div>` : ''}
       ${renderStepper(active, [t('ui.workflow.context'), t('ui.workflow.routeQuestions'), t('ui.workflow.assessmentStep'), t('ui.workflow.prepareStep'), t('ui.workflow.tracked')])}
     </div>
     ${content}
@@ -808,7 +816,7 @@ function renderUdgumWizard() {
     content = renderCreatedStep(wizard.caseId, 'UDGAM');
   }
 
-  return `<section aria-labelledby="workflow-title"><div class="wizard-header"><p class="eyebrow">${escapeHtml(t('udgam.preparation'))}</p><h1 id="workflow-title">${escapeHtml(t('udgam.title'))}</h1>${renderStepper(active, [t('ui.workflow.searchInputs'), t('ui.workflow.preparation'), t('ui.workflow.tracked')])}</div>${content}</section>`;
+  return `<section aria-labelledby="workflow-title"><div class="wizard-header"><p class="eyebrow">${escapeHtml(bilingual('Use case B · Individual UDGAM preparation', 'उपयोग मामला B · व्यक्ति की UDGAM तैयारी'))}</p><h1 id="workflow-title">${escapeHtml(t('udgam.title'))}</h1><div class="info-box"><p><strong>${escapeHtml(bilingual('Synthetic demonstration', 'सिंथेटिक प्रदर्शन'))}:</strong> ${escapeHtml(bilingual('Reclaim Labs does not access UDGAM, enter credentials, or show a search result. The next step is always the official portal and then the relevant bank.', 'Reclaim Labs UDGAM तक पहुँच, क्रेडेंशियल दर्ज या खोज परिणाम नहीं दिखाता। अगला कदम हमेशा आधिकारिक पोर्टल और फिर संबंधित बैंक है।'))}</p></div>${renderStepper(active, [t('ui.workflow.searchInputs'), t('ui.workflow.preparation'), t('ui.workflow.tracked')])}</div>${content}</section>`;
 }
 
 function renderUdgumPlanStep(plan, checklist) {
@@ -833,15 +841,17 @@ function renderCreatedStep(caseId, label) {
 
 function renderCases() {
   return `<section aria-labelledby="cases-title">
-    <div class="section-heading"><div><p class="eyebrow">${escapeHtml(t('ui.cases.eyebrow'))}</p><h1 id="cases-title">${escapeHtml(t('ui.cases.title'))}</h1></div><button class="button small" type="button" data-action="start-workflow" data-workflow="iepf">${escapeHtml(t('ui.cases.newIepf'))}</button></div>
+    <div class="section-heading"><div><p class="eyebrow">${escapeHtml(t('ui.cases.eyebrow'))}</p><h1 id="cases-title">${escapeHtml(t('ui.cases.title'))}</h1></div><div class="button-row"><button class="button small" type="button" data-action="start-workflow" data-workflow="iepf">${escapeHtml(t('ui.cases.newIepf'))}</button><button class="button secondary small" type="button" data-action="start-workflow" data-workflow="udgam">${escapeHtml(t('ui.cases.startUdgum'))}</button><button class="button secondary small" type="button" data-action="start-workflow" data-workflow="uncertain">${escapeHtml(bilingual('New uncertain route', 'नया अनिश्चित मार्ग'))}</button></div></div>
     <div class="info-box"><p><strong>${escapeHtml(t('ui.cases.itemsReviewed'))}:</strong> ${escapeHtml(t('workflow.confidenceNote'))} ${escapeHtml(t('workflow.noOutcome'))}</p></div>
-    ${state.cases.length ? `<div class="case-list" style="margin-top:1rem">${state.cases.map(renderCaseCard).join('')}</div>` : `<div class="empty-state" style="margin-top:1rem"><h2>${escapeHtml(t('ui.cases.noCases'))}</h2><p>${escapeHtml(t('ui.cases.noCasesBody'))}</p><div class="button-row" style="justify-content:center"><button class="button" type="button" data-action="start-workflow" data-workflow="iepf">${escapeHtml(t('ui.cases.startIepf'))}</button><button class="button secondary" type="button" data-action="start-workflow" data-workflow="udgam">${escapeHtml(t('ui.cases.startUdgum'))}</button></div></div>`}
+    ${state.cases.length ? `<div class="case-list" style="margin-top:1rem">${state.cases.map(renderCaseCard).join('')}</div>` : `<div class="empty-state" style="margin-top:1rem"><h2>${escapeHtml(t('ui.cases.noCases'))}</h2><p>${escapeHtml(t('ui.cases.noCasesBody'))}</p><div class="button-row" style="justify-content:center"><button class="button" type="button" data-action="start-workflow" data-workflow="iepf">${escapeHtml(t('ui.cases.startIepf'))}</button><button class="button secondary" type="button" data-action="start-workflow" data-workflow="udgam">${escapeHtml(t('ui.cases.startUdgum'))}</button><button class="button secondary" type="button" data-action="start-workflow" data-workflow="uncertain">${escapeHtml(bilingual('Start uncertain route', 'अनिश्चित मार्ग शुरू करें'))}</button></div></div>`}
   </section>`;
 }
 
 function renderCaseCard(record) {
   const progress = getCaseProgress(record);
-  const workflowLabel = record.workflow === 'iepf' ? t('iepf.title') : t('udgam.title');
+  const workflowLabel = record.journeyVariant === 'uncertain'
+    ? bilingual('Uncertain recovery route', 'अनिश्चित वसूली मार्ग')
+    : record.workflow === 'iepf' ? t('iepf.title') : t('udgam.title');
   const nextStatuses = getAllowedNextStatuses(record.status);
   return `<article class="case-card" aria-labelledby="case-${escapeHtml(record.id)}">
     <div class="case-card-header"><div><p class="eyebrow">${escapeHtml(workflowLabel)} · ${escapeHtml(t('ui.cases.demo'))}</p><h3 id="case-${escapeHtml(record.id)}">${escapeHtml(caseTitle(record))}</h3><p>${escapeHtml(t('ui.cases.created'))}: ${escapeHtml(formatDate(record.createdAt))} · ${escapeHtml(record.claimantType === 'heir' ? t('ui.cases.familyHeir') : record.claimantType === 'holder' ? t('ui.cases.namedHolder') : t('ui.cases.searchPrep'))}</p></div><span class="status-chip ${record.status === CASE_STATUS.USER_REPORTED_RESOLVED ? 'warning' : ''}">${escapeHtml(statusLabel(record.status))}</span></div>
@@ -893,15 +903,16 @@ function renderSourceDirectory() {
 
 function renderAssistant() {
   const answer = state.assistantAnswer;
+  const answerIsQwen = answer?.provider === 'qwen';
   return `<section aria-labelledby="assistant-title">
-    <div class="section-heading"><div><p class="eyebrow">${escapeHtml(t('assistant.fallbackLabel'))}</p><h1 id="assistant-title">${escapeHtml(t('assistant.title'))}</h1></div><p>${escapeHtml(t('assistant.fallbackNotice'))} ${escapeHtml(t('assistant.intro'))}</p></div>
+    <div class="section-heading"><div><p class="eyebrow">${escapeHtml(t('assistant.fallbackLabel'))}</p><h1 id="assistant-title">${escapeHtml(t('assistant.title'))}</h1></div><p>${escapeHtml(t('assistant.runtimeLabel'))} ${escapeHtml(t('assistant.intro'))}</p></div>
     <div class="assistant-card">
-      <div class="panel-header"><div><h2>${escapeHtml(t('assistant.title'))}</h2><p>${escapeHtml(t('assistant.supportedTopics'))}</p></div><span class="status-chip blue">${escapeHtml(t('assistant.deterministic'))}</span></div>
+      <div class="panel-header"><div><h2>${escapeHtml(t('assistant.title'))}</h2><p>${escapeHtml(t('assistant.supportedTopics'))}</p></div><span class="status-chip blue">${escapeHtml(answerIsQwen ? t('assistant.grounded') : t('assistant.deterministic'))}</span></div>
       <form data-form="assistant" class="form-grid">
         <div class="field full"><label for="assistant-question">${escapeHtml(t('assistant.questionLabel'))}</label><textarea id="assistant-question" name="question" rows="3" maxlength="500" placeholder="${escapeHtml(t('assistant.questionPlaceholder'))}"></textarea></div>
         <div class="field" style="justify-content:end"><span class="field-hint">${escapeHtml(t('assistant.languageLabel'))}: ${escapeHtml(SUPPORTED_LANGUAGES.find((language) => language.code === state.language)?.nativeName || state.language)}</span><button class="button" type="submit">${escapeHtml(t('assistant.send'))}</button></div>
       </form>
-      ${answer ? `<div class="assistant-answer" role="status"><div class="pill-row"><span class="pill ${answer.status === 'refused' ? 'warning' : ''}">${escapeHtml(answer.status === 'refused' ? t('assistant.refused') : t('assistant.deterministic'))}</span><span class="pill muted">${escapeHtml(answer.status === 'refused' ? t('assistant.outOfCorpus') : t('assistant.fallbackNotice'))}</span></div><p style="margin-top:0.8rem">${escapeHtml(answer.answer)}</p><div class="pill-row">${answer.sourceIds?.length ? sourceChips(answer.sourceIds) : `<span class="microcopy">${escapeHtml(t('assistant.noSources'))}</span>`}</div></div>` : ''}
+      ${state.assistantLoading ? `<div class="assistant-answer" role="status">${escapeHtml(t('common.loading'))}</div>` : ''}${answer ? `<div class="assistant-answer" role="status"><div class="pill-row"><span class="pill ${answer.status === 'refused' ? 'warning' : ''}">${escapeHtml(answer.status === 'refused' ? t('assistant.refused') : answerIsQwen ? t('assistant.grounded') : t('assistant.deterministic'))}</span><span class="pill muted">${escapeHtml(answer.status === 'refused' ? t('assistant.outOfCorpus') : answerIsQwen ? t('assistant.providerNotice') : t('assistant.fallbackNotice'))}</span></div><p style="margin-top:0.8rem">${escapeHtml(answer.answer)}</p><div class="pill-row">${answer.sourceIds?.length ? sourceChips(answer.sourceIds) : `<span class="microcopy">${escapeHtml(t('assistant.noSources'))}</span>`}</div></div>` : ''}
     </div>
     <div class="panel" style="margin-top:1rem"><div class="panel-header"><div><h2>${escapeHtml(t('assistant.cannotConfirm'))}</h2><p>${escapeHtml(t('workflow.noOutcome'))}</p></div></div><div class="trust-strip" style="margin:0"><div class="trust-item"><span class="trust-icon">×</span><span><strong>${escapeHtml(t('iepf.route'))}</strong><span>${escapeHtml(t('workflow.officialInstruction'))}</span></span></div><div class="trust-item"><span class="trust-icon">×</span><span><strong>${escapeHtml(t('statuses.title'))}</strong><span>${escapeHtml(t('workflow.noOutcome'))}</span></span></div><div class="trust-item"><span class="trust-icon">×</span><span><strong>${escapeHtml(t('common.trustBoundary'))}</strong><span>${escapeHtml(t('trust.notConfirmation'))}</span></span></div></div></div>
   </section>`;
@@ -929,16 +940,48 @@ function readForm(form) {
   return Object.fromEntries(data.entries());
 }
 
+function containsPotentialSensitiveInput(question) {
+  return /(?:password|passcode|\botp\b|one[- ]time\s+(?:password|code)|aadhaar|\bpan\b|ifsc|cvv|card\s*(?:number|no\.?\b)|account\s*(?:number|no\.?\b)|banking\s+credential|document\s+(?:number|contents?))/i.test(String(question || ''));
+}
+
+async function requestAssistantAnswer(question, language) {
+  const localFallback = () => answerWithFallback(question, { language });
+  if (containsPotentialSensitiveInput(question) || typeof fetch !== 'function') return localFallback();
+  try {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 9000);
+    let response;
+    try {
+      response = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({ question: String(question).slice(0, 500), language }),
+        signal: controller.signal
+      });
+    } finally {
+      window.clearTimeout(timer);
+    }
+    if (!response.ok) return localFallback();
+    const payload = await response.json();
+    return validateAssistantResponse(payload).ok ? payload : localFallback();
+  } catch {
+    return localFallback();
+  }
+}
+
 function beginWorkflow(workflow) {
   state.view = 'discover';
   state.wizardSuspended = false;
   state.assistantAnswer = null;
-  if (state.wizard?.workflow === workflow) {
+  const journeyVariant = workflow === 'uncertain' ? 'uncertain' : '';
+  const actualWorkflow = workflow === 'uncertain' ? 'iepf' : workflow;
+  if (state.wizard?.workflow === actualWorkflow && state.wizard?.journeyVariant === journeyVariant) {
     persist(); render(); return;
   }
-  state.wizard = workflow === 'iepf'
+  state.wizard = actualWorkflow === 'iepf'
     ? {
-        workflow,
+        workflow: actualWorkflow,
+        journeyVariant,
         step: 1,
         inputs: {
           claimantType: '',
@@ -952,7 +995,8 @@ function beginWorkflow(workflow) {
         caseId: null
       }
     : {
-        workflow,
+        workflow: actualWorkflow,
+        journeyVariant: '',
         step: 1,
         inputs: { hasHolderName: 'no', hasBank: 'no', hasAdditionalIdentifier: 'no' },
         plan: null,
@@ -1036,6 +1080,7 @@ function createCaseFromWizard() {
     id,
     demo: activeMode === 'demo',
     workflow: wizard.workflow,
+    journeyVariant: wizard.journeyVariant || '',
     routeId: assessment.routeId,
     routeTitle: localizedRoute(assessment.routeId, 'title'),
     claimantType: assessment.claimantType || 'search-preparation',
@@ -1315,12 +1360,17 @@ document.addEventListener('submit', (event) => {
       render();
       return;
     }
-    const response = answerWithFallback(values.question, { language: state.language });
-    state.assistantAnswer = validateAssistantResponse(response).ok
-      ? response
-      : answerWithFallback('Tell me about IEPF or UDGAM.', { language: state.language });
-    persist();
+    state.assistantLoading = true;
+    state.assistantAnswer = null;
     render();
+    requestAssistantAnswer(values.question, state.language).then((response) => {
+      state.assistantLoading = false;
+      state.assistantAnswer = validateAssistantResponse(response).ok
+        ? response
+        : answerWithFallback('Tell me about IEPF or UDGAM.', { language: state.language });
+      persist();
+      render();
+    });
   }
 });
 

@@ -12,6 +12,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 WORKDIR /app
 COPY --from=checks /app/server.mjs ./server.mjs
+COPY --from=checks /app/server ./server
 COPY --from=checks /app/public ./public
 COPY --from=checks /app/src ./src
 USER node

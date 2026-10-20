@@ -72,6 +72,21 @@ test('actual controller discovers real published routes and hides review-only en
   assert.equal(reloaded.state().cases.length, 1);
 });
 
+test('home makes all three judge journeys discoverable with explicit trust boundaries', () => {
+  const app = harness();
+  assert.match(app.html(), /A · Deceased family member shares or dividends/);
+  assert.match(app.html(), /B · Individual potentially unclaimed bank deposit/);
+  assert.match(app.html(), /C · Uncertain recovery route/);
+  app.click({ action: 'start-workflow', workflow: 'uncertain' });
+  assert.equal(app.state().wizard.workflow, 'iepf');
+  assert.equal(app.state().wizard.journeyVariant, 'uncertain');
+  assert.match(app.html(), /custody unknown/i);
+  app.click({ action: 'navigate', view: 'home' });
+  app.click({ action: 'start-workflow', workflow: 'udgam' });
+  assert.equal(app.state().wizard.workflow, 'udgam');
+  assert.match(app.html(), /does not access UDGAM/i);
+});
+
 test('explicit user evidence and conflicts drive matching without official confirmation', () => {
   const app = harness();
   app.submit('opportunity-search', { institution: 'Reserve Bank of India', product: 'unclaimed deposits', evidenceKind: 'old-statement', evidenceConfirmed: 'on' });
@@ -125,6 +140,34 @@ test('IEPF draft and review choices survive navigation, language changes and bac
   assert.equal(app.state().wizard.checklist[0].reviewed, true);
   app.click({ action: 'create-case' });
   assert.equal(app.state().cases[0].demo, false);
+});
+
+test('judge demo completes the synthetic inherited-shares case from uncertainty to tracked preparation', () => {
+  const app = harness();
+  app.click({ action: 'start-workflow', workflow: 'iepf' });
+  app.submit('wizard', { claimantType: 'heir' });
+  app.submit('wizard', { custody: 'unknown', companyName: '', deathCertificate: 'no', heirAuthority: 'no' });
+  const assessment = app.state().wizard.assessment;
+  assert.equal(assessment.routeId, 'verify-custody');
+  assert.equal(assessment.confidence, 'needs-more-information');
+  assert.equal(assessment.isOfficiallyConfirmed, false);
+  assert.equal(assessment.missingInformation.length, 4);
+  assert.match(app.html(), /IEPF Authority/);
+  assert.match(app.html(), /What you can do next/);
+  app.click({ action: 'wizard-next' });
+  app.change({ action: 'wizard-check', itemIndex: '0' }, null, true);
+  app.click({ action: 'create-case' });
+  const record = app.state().cases[0];
+  assert.equal(record.routeId, 'verify-custody');
+  assert.equal(record.status, 'preparing');
+  assert.equal(record.checklist[0].reviewed, true);
+  assert.equal(record.timeline.length, 1);
+  assert.equal(record.assessment.isOfficiallyConfirmed, false);
+  const resumed = harness(app.seed);
+  resumed.click({ action: 'navigate', view: 'cases' });
+  assert.match(resumed.html(), /Preparation case/);
+  assert.match(resumed.html(), /Use an official company\/RTA or IEPF\/MCA channel/);
+  assert.doesNotMatch(resumed.html(), /institution-confirmed|recovered amount|claim approved/i);
 });
 
 test('portal click does not submit and follow-up date and family role persist', () => {
