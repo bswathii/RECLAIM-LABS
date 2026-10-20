@@ -1,7 +1,7 @@
 # Reclaim Labs blueprint compliance audit
 
-**Audit basis:** current repository at the working tree after the implementation pass  
-**Audit date:** 2026-10-20 (Asia/Calcutta)  
+**Audit basis:** current repository at the working tree after the implementation pass
+**Audit date:** 2026-10-20 (Asia/Calcutta)
 **Evidence rule:** a requirement is `VERIFIED` only when the relevant command, HTTP check, or browser observation was actually run. Code inspection alone is marked `UNVERIFIED` or `PARTIAL`.
 
 ## Baseline and repository evidence
