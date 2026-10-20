@@ -7,27 +7,29 @@
 | Stage | Status | Evidence |
 | --- | --- | --- |
 | Stage 1 — audit and scope freeze | Complete | `docs/initial-audit.md`, `docs/requirements.md`, and source research notes |
-| Stage 2 — verified source corpus | Partial | RBI records are verified; IEPF/MCA records are official destinations with access blocked in the audit |
+| Stage 2 — verified source corpus | Partial | RBI FAQ/NSDL guidance support published preparation routes; IEPF/MCA detail is blocked. DFS title-only content remains hidden; IRDAI/MITRA are research-only. Source access A–E findings and manual review process are recorded. |
 | Stage 3 — IEPF family/heir vertical slice | Implemented locally | Explicit self/family choice, deterministic custody routing, four-part result, source-labelled route checklist, official handoff links where appropriate, and local case creation are implemented |
 | Stage 4 — UDGAM preparation journey | Implemented locally | RBI-backed search-input preparation, official handoff, checklist, and local case creation are implemented |
-| Stage 5 — progress and family organizer | Partial | Local demo Cases destination, reviewed-item counts, user-reported action/submission/resolution statuses, timeline, Home summary, and reset/export controls are implemented; shared family records remain backlog |
-| Stage 6 — Qwen3-8B integration | Blocked / boundary ready | No provider endpoint or credential is configured; deterministic fallback is required and will be tested |
-| Stage 7 — security and regression | Implemented locally / browser partial | Node tests cover domain, i18n, fallback, malformed URLs, health, traversal, and status semantics; static smoke passes. Browser storage-failure and full click-through remain manual work. |
-| Stage 8 — demo readiness | Partial | Five-destination responsive UI, English/Hindi dictionaries, visible demo mode, reset confirmation, fallback states, non-root Docker configuration, and health check are present; Docker runtime remains unverified. |
+| Stage 5 — progress and family organizer | Partial | Real/local and isolated demo cases, reviewed items, independent evidence/link-click/submission/response/recovery reports, legacy user-reported status timeline, Home summary, family-role labels, review dates and namespace-specific deletion. Shared access/notifications remain backlog. |
+| Stage 6 — Qwen3-8B integration | Blocked / boundary ready | Endpoint/key missing; exact-model/browser-exposure checks pass and deterministic fallback is tested. No inference attempted. |
+| Stage 7 — security and regression | Implemented locally / browser partial | 57 Node tests cover domain, actual-controller persistence/isolation/language/drafts/storage failures, fallback and HTTP security. Document/storage boundaries are stubbed; full browser/native action/layout checks remain open. |
+| Stage 8 — demo readiness | Partial | Five-destination UI, English/Hindi core copy, isolated labelled demo, reset confirmation, fallback, non-root Docker configuration and health endpoint present; real browser interaction and Docker runtime unverified. |
+| Catalogue discovery | Implemented locally | Four published records across two route families; one review-only record hidden. Search/filter/provenance/details, conservative user-evidence relevance, conflicts and case saving have Node coverage; no individual registry search. |
+| Discovery utility / monetization | Instrumentation only | Optional local elapsed-time/self-report collection and a counterbalanced official-source comparison protocol exist. No participants, demonstrated improvement, paid feature, RevenueCat integration or purchase test. |
 
 ## Checks
 
-- `sh ./test.sh`: **passed** in the default worker PATH; it ran the POSIX smoke suite because Node.js is not on that PATH.
-- `PATH="/c/Program Files/nodejs:$PATH" npm.cmd test`: **passed**, all 23 behavioral tests.
-- `PATH="/c/Program Files/nodejs:$PATH" sh ./test.sh`: **passed**, all 23 behavioral tests.
-- `PATH="/c/Program Files/nodejs:$PATH" npm.cmd run qwen:check`: **expected blocker exit 1**; exact model valid, browser exposure PASS, endpoint/key missing, inference not attempted.
-- `npm ci --ignore-scripts`: **passed** with the temporary pinned Node 22.14.0 runtime; there are no runtime dependencies.
-- `node server.mjs` + HTTP smoke: **passed** for the index, browser domain-module delivery, `/healthz`, and source-path traversal rejection.
-- Built-in browser preview: **Home rendered successfully at 310px viewport** with five navigation controls, language selector, trust copy, and both journey cards. Browser click dispatch timed out, so full interactive browser journeys remain unverified.
+- `sh ./test.sh` with pinned Node **22.14.0** on PATH: **57 passed, 0 failed, 0 skipped**, all offline. `node --test --test-reporter=spec` also passed. Baseline before catalogue work was 23 tests.
+- `sh ./test.sh` without Node on PATH: static smoke **passed**. This is a reduced fallback, not a behavioral-suite pass.
+- `npm run catalogue:check` / `node scripts/check-catalogue.mjs`: **passed**, four published records, one under review. No source refresh, individual lookup or date update performed.
+- `npm run qwen:check` / `node scripts/check-qwen-config.mjs`: **expected blocker exit 1**; exact model valid, browser exposure PASS, endpoint/key missing, inference not attempted.
+- `npm ci --ignore-scripts --offline`: **passed**, using pinned Node 22.14.0 and the installed npm CLI. The temporary runtime's own npm copy was incomplete (`node-gyp` missing); using the intact installed npm CLI succeeded without repository/global changes. There are no external packages.
+- HTTP smoke against the running server: **200** for `/`, `/healthz`, `/app.mjs`, `/styles.css` and the three new domain modules (`opportunities`, `opportunity-copy`, `case-events`). Malformed-URL/traversal regression tests also pass.
+- Built-in browser preview: Home rendered, including real/local mode copy in the catalogue pass. Earlier Home observation was at a narrow 310px viewport. Click dispatch timed out; full browser journeys/downloads/focus/layout remain unverified. Controller tests are not browser evidence.
 - Docker build: **blocked**; Docker is not installed in the worker.
 
 ## Language status
 
-- English: implemented and translation-call coverage tested.
-- Hindi: implemented and translation-call/key-parity coverage tested; native-language procedural review remains recommended.
+- English: core workflow/catalogue copy implemented and translation-call coverage tested.
+- Hindi: core copy, catalogue details/preparation prompts and state continuity tested through selected controller paths; native-language procedural review remains open. Original official excerpts remain in source language, and some UI strings are controller-local bilingual literals rather than dictionary keys.
 - Kannada: not advertised; intentionally incomplete/deferred.

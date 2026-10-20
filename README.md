@@ -9,9 +9,14 @@ It does not confirm that an asset exists, estimate a recovery amount, file a cla
 
 ## Current implementation
 
-This is a dependency-free Node 22 web app with exactly five primary destinations: **Home, Discover, Cases, Assistant, and Settings**. The browser uses local demo persistence only; there is no authentication, database, document upload, portal scraping, or government-portal credential handling. Every screen carries a synthetic-demo banner.
+This is a dependency-free Node 22 web app with exactly five primary destinations: **Home, Discover, Cases, Assistant, and Settings**. It opens in real-catalogue/local-preparation mode. A separate, explicitly labelled synthetic demo is available from the header. Neither mode is connected to individual asset records.
 
-The rules engine is in `src/domain/rules.mjs`. Source records are in `src/domain/sources.mjs`. The assistant is currently a deterministic, source-labelled fallback. The Qwen3-8B configuration boundary is kept in the unserved `server/` directory; no provider endpoint is configured.
+- **Discover:** search English/Hindi clues, filter category and verification status, inspect provenance and preparation prompts, open the official destination, and save a case. Four published records represent two preparation journeys and two reference/search routes across the same two categories, **not four separate recoverable assets**. A DFS gateway entry remains under review and hidden.
+- **Relevance, not ownership:** institution/product words are topical only. Explicitly reported personal evidence can suggest a potential personal match, never an independently verified match; conflicting evidence yields insufficient information. No document is uploaded or read.
+- **Cases:** reviewed preparation items, separate evidence/link-click/submission/response/recovery reports, family-role labels without names, and a user-chosen in-app review date. Link clicks do not prove page load or submission. No amount or official deadline is inferred.
+- **Settings:** namespace-specific export/deletion and optional local timed discovery tasks. No participant study or improvement claim exists. The prototype is free; premium/RevenueCat features are hypotheses, not working purchases.
+
+There is no authentication, server database, upload, portal scraping, credential handling, or live individual registry search. Domain data is in `src/domain/opportunities.mjs` and `src/domain/sources.mjs`; workflow rules are in `src/domain/rules.mjs`. The assistant is a deterministic, source-labelled fallback. The Qwen3-8B boundary is in the unserved `server/` directory; no provider endpoint is configured.
 
 ## Requirements
 
@@ -19,7 +24,7 @@ The rules engine is in `src/domain/rules.mjs`. Source records are in `src/domain
 - npm bundled with Node.
 - No external npm packages are required.
 
-The default OmniRush worker PATH did not include Node.js or Docker. The full Node suite was later verified with a temporary, pinned Node 22.14.0 runtime; Docker remains unavailable. The POSIX static smoke suite also runs without Node.
+The full suite is verified on pinned Node 22.14.0. Docker is unavailable in the development worker, so container build/run remains unverified. A POSIX shell and Perl are needed only for the reduced static fallback when Node is absent.
 
 ## Setup
 
@@ -45,7 +50,15 @@ The one project test command is:
 sh ./test.sh
 ```
 
-With Node.js, it runs the full Node test suite (`node --test`) covering deterministic routes, source IDs, confidence boundaries, checklist safety, UDGAM preparation, status semantics, progress, English/Hindi translation coverage, fallback citations, unsupported-answer rejection, malformed URLs, health, and path traversal. Without Node.js, it runs the available offline static smoke suite and says that behavioral tests remain blocked.
+With Node.js, it runs all **57 tests** offline: catalogue provenance/publication, conservative relevance and conflicting evidence, workflow rules, case-event independence, actual-controller persistence/mode isolation/language/draft handling, fallback safety, and HTTP security/health. The controller harness stubs document/storage boundaries; it is **not a real-browser or layout test**. Without Node.js, the command runs only static smoke and explicitly says behavioral tests remain blocked; that is not a full-suite pass.
+
+To validate the editorial catalogue without fetching live sources:
+
+```sh
+npm run catalogue:check
+```
+
+This checks publication gates and metadata, not current portal availability. Source investigation and the manual refresh process are in `docs/source-register.md`.
 
 To validate the Qwen boundary offline without calling an inference provider:
 
@@ -73,25 +86,25 @@ Deploy the container to an approved host that supports a Node 22 container, or d
 
 The permitted model identifier is `Qwen/Qwen3-8B`. The repository contains `.env.example` placeholders and a server-only status boundary, but it does not claim live Qwen inference. Run `npm run qwen:check` to validate the exact model and see the missing endpoint/key blocker without making a network request. A future server adapter must validate the provider, rate-limit requests, retrieve approved source excerpts, validate source IDs and output status, reject unsupported claims, and fall back on timeout/error. See `docs/architecture.md` and `docs/known-limitations.md`.
 
-## Repeatable demo walkthrough
+## Repeatable walkthrough
 
-1. Start on **Home** in synthetic demo mode and read the trust boundary.
-2. Open **Discover → IEPF**. Explicitly choose **Family / heir**; no legally meaningful option is preselected.
-3. Choose **Not sure yet** for custody and leave the company label empty to see the information gap state.
-4. Review **Here is the next place to check**, the suggested route, the four evidence sections, sources, and preparation checklist. The app must not call this an asset match.
-5. Open the appropriate official destination yourself, then create a local demo case.
-6. Open **Cases**, review preparation items, report an external action, report a submission, and optionally mark it resolved by you. These are not institution-confirmed outcomes.
-7. Open **Settings** to inspect local-only storage, source status, language, export, and the confirmed reset action.
-8. Repeat with **Discover → UDGAM**. Confirm that the app prepares the search without collecting account numbers or credentials.
-9. Ask **Assistant** about UDGAM or IEPF. The UI identifies the deterministic fallback and follows the selected English/Hindi language; it does not pretend Qwen is connected.
+1. Open **Home** and read the real-catalogue/local-records boundary. For synthetic exploration, switch to the isolated demo; every demo screen says **DEMO DATA — NOT A REAL FINANCIAL MATCH**. Do not use personal records in walkthroughs.
+2. Open **Discover**, search `UDGAM`, and inspect the RBI search route. No personal evidence means topical relevance only. Read source dates, limitations and prompts; open the official destination yourself.
+3. Save a preparation case. In **Cases**, review items, record separate user reports, choose a review date and family role, then reload. A link click must not mark submission; reports must never become official confirmation.
+4. Return to **Discover → guided IEPF journey**. Explicitly choose **Family / heir**, select unknown custody, and leave the company label empty. Inspect the suggested route, information gaps, source references, and checklist before creating a case.
+5. Repeat **guided UDGAM** with missing inputs. It asks whether information is available, not for identifiers or account numbers.
+6. Switch language mid-workflow, visit another destination, then resume. Answers and reviewed items should survive. Ask **Assistant** a supported question; it must label the deterministic fallback.
+7. In **Settings**, inspect local storage, export cases, and cancel/confirm deletion. Switch modes to check the other namespace remains untouched.
+
+See `docs/manual-usability-test.md` for three reproducible discovery paths, keyboard/layout checks, and an official-portal-only comparison protocol. These are test instructions, not participant results.
 
 ## Supported languages
 
-English and Hindi cover the complete core experience and are backed by centralized dictionaries and coverage tests. Kannada is intentionally not advertised until it can be fully translated and reviewed for procedural fidelity.
+English and Hindi cover core navigation, catalogue details, preparation prompts and workflows. Dictionaries, localized catalogue copy and controller-local bilingual strings are used; dictionary parity and selected controller paths are tested. Official source titles/excerpts remain in their original language. Native-language procedural review is still required. Kannada is not advertised.
 
 ## Storage and privacy
 
-Demo state is stored in `localStorage` under the `reclaim-labs-demo-v1` namespace. It remains in the current browser, is not cloud-synchronized, and may be lost when browser data is cleared. Reset requires confirmation and only removes this demo namespace. Do not enter Aadhaar, PAN, account numbers, passwords, OTPs, government-portal credentials, or document contents.
+Real/local preparation state uses `localStorage` namespace `reclaim-labs-local-v2`; the isolated demo uses `reclaim-labs-demo-v1`. Case flags must match the active mode. Reset requires confirmation and removes only the active namespace. Data is not encrypted by this app or cloud-synchronized, and may be lost when browser data is cleared. Export downloads cases, not the full discovery/study state. Do not enter Aadhaar, PAN, account numbers, passwords, OTPs, government-portal credentials, document contents, or family names. Other scripts/users with access to this browser profile can access local storage; this is not a secure document vault.
 
 ## Project records
 
