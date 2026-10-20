@@ -10,7 +10,8 @@ The first implementation is a dependency-free, responsive web application with e
 - `src/domain/i18n.mjs` is the centralized English/Hindi dictionary. Kannada is intentionally not advertised until the core experience is fully translated and reviewed.
 - `src/domain/rules.mjs` is a pure deterministic rules module for IEPF routing, UDGAM preparation, checklists, progress, and case transitions.
 - `src/domain/sources.mjs` is the structured, versioned source register used by the UI and tests.
-- `src/domain/assistant.mjs` implements a structured deterministic fallback and the Qwen adapter boundary. It does not call a provider from browser code.
+- `src/domain/assistant.mjs` implements the structured deterministic fallback used by browser code.
+- `server/qwen-config.mjs` is an unserved, server-only Qwen configuration/status boundary. It does not call a provider.
 - `server.mjs` is a small Node built-in HTTP server for local use and Docker; there are no runtime npm dependencies.
 - `tests/` contains Node tests for domain behavior and a POSIX smoke test for environments without Node.
 
@@ -26,7 +27,7 @@ The first implementation is a dependency-free, responsive web application with e
 
 ## AI boundary
 
-`src/domain/assistant.mjs` defines the shape expected from a future server-side Qwen3-8B adapter (`Qwen/Qwen3-8B`). The adapter must receive only approved source excerpts and deterministic case context, return structured output with valid source IDs, and fail closed to the fallback. The browser build currently uses the fallback and labels it as such. No API key or endpoint is read by client code.
+The permitted model is `Qwen/Qwen3-8B`. `server/qwen-config.mjs` reads only server-side environment values, validates that exact model identifier, reports endpoint/key presence without returning their values, and scans the browser-served `public/` and `src/domain/` roots for Qwen configuration markers. The browser build uses only the deterministic fallback and labels it as such. No API key, endpoint, or model placeholder is read by client code. `npm run qwen:check` is an offline check and never calls inference.
 
 ## Intentional simplifications
 

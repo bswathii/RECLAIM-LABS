@@ -17,6 +17,8 @@ required_files="
   src/domain/rules.mjs
   src/domain/sources.mjs
   src/domain/assistant.mjs
+  server/qwen-config.mjs
+  scripts/check-qwen-config.mjs
   src/domain/i18n.mjs
   docs/requirements.md
   docs/architecture.md
@@ -46,6 +48,8 @@ perl -0e '
     ["$root/docs/source-register.md", qr/SRC-RBI-UDGAM-FAQ/],
     ["$root/docs/source-register.md", qr/access-blocked/],
     ["$root/.env.example", qr/QWEN_MODEL=Qwen\/Qwen3-8B/],
+    ["$root/server/qwen-config.mjs", qr/QWEN_MODEL/],
+    ["$root/scripts/check-qwen-config.mjs", qr/Inference: not attempted/],
     ["$root/server.mjs", qr/try\s*\{\s*pathname\s*=\s*decodeURIComponent/],
     ["$root/tests/server.test.mjs", qr/malformed URL escapes/],
     ["$root/tests/server.test.mjs", qr/path traversal/],

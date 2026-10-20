@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "qwen:check": "node scripts/check-qwen-config.mjs"
   },
   "engines": {
     "node": ">=22.14.0"

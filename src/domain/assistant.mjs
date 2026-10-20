@@ -54,13 +54,3 @@ export function validateAssistantResponse(response) {
   }
   return { ok: true };
 }
-
-export function createQwenAdapter({ endpoint = '', apiKey = '', model = 'Qwen/Qwen3-8B' } = {}) {
-  return {
-    model,
-    configured: Boolean(endpoint && apiKey),
-    async answer() {
-      throw new Error('Qwen adapter is a server-side boundary and is not connected in this static demo.');
-    }
-  };
-}

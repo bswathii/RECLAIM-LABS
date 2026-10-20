@@ -11,7 +11,7 @@ It does not confirm that an asset exists, estimate a recovery amount, file a cla
 
 This is a dependency-free Node 22 web app with exactly five primary destinations: **Home, Discover, Cases, Assistant, and Settings**. The browser uses local demo persistence only; there is no authentication, database, document upload, portal scraping, or government-portal credential handling. Every screen carries a synthetic-demo banner.
 
-The rules engine is in `src/domain/rules.mjs`. Source records are in `src/domain/sources.mjs`. The assistant is currently a deterministic, source-labelled fallback. The Qwen3-8B boundary is documented and kept server-side, but no provider endpoint is configured.
+The rules engine is in `src/domain/rules.mjs`. Source records are in `src/domain/sources.mjs`. The assistant is currently a deterministic, source-labelled fallback. The Qwen3-8B configuration boundary is kept in the unserved `server/` directory; no provider endpoint is configured.
 
 ## Requirements
 
@@ -47,6 +47,14 @@ sh ./test.sh
 
 With Node.js, it runs the full Node test suite (`node --test`) covering deterministic routes, source IDs, confidence boundaries, checklist safety, UDGAM preparation, status semantics, progress, English/Hindi translation coverage, fallback citations, unsupported-answer rejection, malformed URLs, health, and path traversal. Without Node.js, it runs the available offline static smoke suite and says that behavioral tests remain blocked.
 
+To validate the Qwen boundary offline without calling an inference provider:
+
+```sh
+npm run qwen:check
+```
+
+The check validates `QWEN_MODEL` exactly as `Qwen/Qwen3-8B`, scans the browser-served `public/` and `src/domain/` roots for endpoint/model/key markers, withholds configured values, and reports missing `QWEN_ENDPOINT` and `QWEN_API_KEY` as blockers. It exits non-zero while the endpoint or key is absent. It never performs inference.
+
 ## Docker build and run
 
 ```sh
@@ -63,7 +71,7 @@ Deploy the container to an approved host that supports a Node 22 container, or d
 
 ## Qwen3-8B status
 
-The permitted model identifier is `Qwen/Qwen3-8B`. The repository contains `.env.example` placeholders and a structured fallback boundary, but it does not claim live Qwen inference. A future server adapter must validate the provider, rate-limit requests, retrieve approved source excerpts, validate source IDs and output status, reject unsupported claims, and fall back on timeout/error. See `docs/architecture.md` and `docs/known-limitations.md`.
+The permitted model identifier is `Qwen/Qwen3-8B`. The repository contains `.env.example` placeholders and a server-only status boundary, but it does not claim live Qwen inference. Run `npm run qwen:check` to validate the exact model and see the missing endpoint/key blocker without making a network request. A future server adapter must validate the provider, rate-limit requests, retrieve approved source excerpts, validate source IDs and output status, reject unsupported claims, and fall back on timeout/error. See `docs/architecture.md` and `docs/known-limitations.md`.
 
 ## Repeatable demo walkthrough
 

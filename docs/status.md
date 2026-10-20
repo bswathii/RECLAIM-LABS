@@ -18,8 +18,9 @@
 ## Checks
 
 - `sh ./test.sh`: **passed** in the default worker PATH; it ran the POSIX smoke suite because Node.js is not on that PATH.
-- `"C:\\Program Files\\nodejs\\node.exe" --test`: **passed**, all 18 behavioral tests with Node v24.22.0; the project runtime remains pinned to Node 22.14.0 in `.nvmrc`.
-- `PATH="/c/Program Files/nodejs:$PATH" sh ./test.sh`: **passed**, all 18 behavioral tests.
+- `PATH="/c/Program Files/nodejs:$PATH" npm.cmd test`: **passed**, all 23 behavioral tests.
+- `PATH="/c/Program Files/nodejs:$PATH" sh ./test.sh`: **passed**, all 23 behavioral tests.
+- `PATH="/c/Program Files/nodejs:$PATH" npm.cmd run qwen:check`: **expected blocker exit 1**; exact model valid, browser exposure PASS, endpoint/key missing, inference not attempted.
 - `npm ci --ignore-scripts`: **passed** with the temporary pinned Node 22.14.0 runtime; there are no runtime dependencies.
 - `node server.mjs` + HTTP smoke: **passed** for the index, browser domain-module delivery, `/healthz`, and source-path traversal rejection.
 - Built-in browser preview: **Home rendered successfully at 310px viewport** with five navigation controls, language selector, trust copy, and both journey cards. Browser click dispatch timed out, so full interactive browser journeys remain unverified.
