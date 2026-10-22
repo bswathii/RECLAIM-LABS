@@ -1,0 +1,62 @@
+name: Core workflow validation
+
+on:
+  push:
+    branches: [main, "work/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Core workflow and source catalogue
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - name: Install reproducibly
+        run: npm ci
+
+      - name: Run regression suite
+        run: npm test
+
+      - name: Validate published source catalogue
+        run: npm run catalogue:check
+
+      - name: Verify server starts and health endpoint responds
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT=3187 node server.mjs > /tmp/reclaim-server.log 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3187/healthz > /tmp/reclaim-health.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          test -s /tmp/reclaim-health.json
+          cat /tmp/reclaim-health.json
+          curl --fail --silent http://127.0.0.1:3187/ > /dev/null
+          curl --fail --silent http://127.0.0.1:3187/app.mjs > /dev/null
